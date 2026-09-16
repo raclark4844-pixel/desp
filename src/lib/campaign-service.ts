@@ -158,7 +158,7 @@ export async function activateCampaign(campaignId: string) {
         campaignId,
         provider: "APS_ORCHESTRATOR",
         jobType: "FIND_LEADS",
-        status: { in: ["QUEUED", "RUNNING"] },
+        status: { in: ["QUEUED", "RUNNING", "SUCCEEDED"] },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -168,6 +168,7 @@ export async function activateCampaign(campaignId: string) {
         kind: "already_queued" as const,
         campaignId,
         jobId: existingJob.id,
+        jobStatus: existingJob.status,
         status: campaign.status,
       };
     }
@@ -211,6 +212,7 @@ export async function activateCampaign(campaignId: string) {
       kind: "queued" as const,
       campaignId,
       jobId: job.id,
+      jobStatus: job.status,
       status: updated.status,
     };
   });
