@@ -125,7 +125,7 @@ export async function createCampaignIntake(input: CampaignIntake) {
         eventType: "campaign.created",
         actorType: "CUSTOMER_INTAKE",
         actorId: input.customer.contactEmail.toLowerCase(),
-        data: {
+        payload: {
           source: "campaign-builder",
           status: "DRAFT",
           desiredLeadCount: input.campaign.desiredLeadCount,
@@ -198,7 +198,7 @@ export async function activateCampaign(campaignId: string) {
         campaignId,
         eventType: "campaign.activated",
         actorType: "APS_INTERNAL",
-        data: {
+        payload: {
           previousStatus: campaign.status,
           status: updated.status,
           queuedJobId: job.id,
