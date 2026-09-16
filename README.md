@@ -1,40 +1,125 @@
-# APS Lead Engine — Step 1 Database Foundation
+# APS Lead Engine — Steps 1–2
 
-This repository contains Step 1 of the APS Lead Engine build: a production-oriented PostgreSQL data layer designed for Vercel plus a pooled PostgreSQL provider such as Neon.
+APS Lead Engine is the backend and campaign-intake foundation for AP Spartan's multi-industry lead-generation platform. The system is designed so one permanent customer/campaign/lead identity follows a prospect through sourcing, enrichment, compliance, outreach, qualification, delivery, and reporting.
 
-## What Step 1 establishes
+## Current scope
 
-- Permanent UUIDs for customers, campaigns, leads, conversations, messages and deliveries.
-- A campaign/lead enrollment table so one canonical `leadId` remains attached to the same lead across campaigns and downstream workflows.
+### Step 1 — Data foundation
+
+- PostgreSQL / Neon database with permanent UUIDs for customers, campaigns, leads, conversations, messages, appointments, deliveries, provider jobs, costs, and audit events.
+- Campaign/lead enrollment model so one canonical `leadId` can participate in workflows without disconnected duplicate records.
 - Property and contact normalization.
-- Consent evidence and suppression records as first-class data.
-- Provider-job tracking for future PropWire, BatchLeads, PhantomBuster and other source adapters.
-- Conversation, qualification, appointment and delivery records for later automation.
-- Cost attribution by customer, campaign, lead, provider and cost type.
-- Audit events for important system actions.
-- Database indexes for high-volume territory, compliance, messaging and dashboard lookups.
+- Consent evidence and suppression/DNC records as first-class data.
+- Provider-job tracking for future PropWire, BatchLeads, PhantomBuster, TextGrid, and other adapters.
+- Cost attribution and audit history.
+- Production-oriented indexes for territory, compliance, messaging, and reporting workloads.
+
+### Step 2 — Campaign Builder + orchestration API foundation
+
+- Next.js App Router campaign builder at `/campaigns/new`.
+- Industry-aware targeting profiles for roofing, HVAC, solar, windows/siding, landscaping, remodeling, real estate, mortgage, concrete, decks/outdoor living, and custom industries.
+- Multi-territory campaigns supporting counties, ZIP codes, cities, and states.
+- Customer/company intake, lead-count goals, residential/commercial selection, service level, campaign dates, and requested communication channels.
+- Zod server-side validation plus spam honeypot protection.
+- Atomic campaign creation: customer, customer-admin identity, campaign, territories, targeting configuration, and audit event are written in one database transaction.
+- Draft-only safety: public intake creates `DRAFT` campaigns and **does not** purchase data or contact prospects.
+- Protected internal activation route that can transition a campaign to `READY` and queue one `APS_ORCHESTRATOR / FIND_LEADS` provider job.
+- Idempotent activation protection against duplicate queued/running source jobs.
+- Database-backed health endpoint.
+- Automated GitHub CI for Prisma validation, TypeScript checking, and production Next.js builds.
 
 ## Stack
 
-- PostgreSQL
+- Next.js 16.3.5
+- React 19.3.0
+- Zod 4.6.5
+- PostgreSQL / Neon
 - Prisma ORM 7.10.0
 - `@prisma/adapter-pg`
 - Node.js 20.19+
 
-Prisma 7 requires a driver adapter. Runtime traffic should use a pooled PostgreSQL URL; migrations should use a direct URL.
+## Routes
 
-## Database setup
+### User-facing
 
-1. Copy `.env.example` to `.env`.
-2. Set `DATABASE_URL` to the pooled PostgreSQL connection string.
-3. Set `DIRECT_URL` to the direct PostgreSQL connection string.
-4. Run `npm install`.
-5. Run `npm run db:validate`.
-6. Run `npm run db:generate`.
-7. Once the production database exists, create/apply the first migration with `npm run db:migrate:dev -- --name init_aps_lead_engine` in development and `npm run db:migrate:deploy` in production.
+- `GET /` → redirects to `/campaigns/new`
+- `GET /campaigns/new` → APS Campaign Builder
 
-Never commit `.env` or database credentials.
+### API
 
-## Scope boundary
+- `POST /api/campaigns` → validates intake and creates a campaign draft
+- `GET /api/industries` → returns current industry targeting profiles
+- `GET /api/health` → verifies the application can reach PostgreSQL
+- `POST /api/campaigns/:campaignId/activate` → protected APS-only activation endpoint; requires `x-aps-internal-key`
 
-This commit intentionally implements **Step 1 only**. It does not yet create the Campaign Builder UI, orchestration API routes, lead-provider connectors, TextGrid messaging, AI reply agents or deployment automation. Those layers will use this data model in later steps.
+## Environment variables
+
+Copy `.env.example` to `.env.local` for local Next.js development.
+
+- `DATABASE_URL` — pooled PostgreSQL connection for runtime traffic
+- `DIRECT_URL` — direct/unpooled PostgreSQL connection for migrations and administration
+- `APS_INTERNAL_API_KEY` — long random secret used only by protected APS orchestration routes
+
+Never commit database credentials, API keys, or `.env*` secret files.
+
+## Development
+
+```bash
+npm install
+npm run db:validate
+npm run typecheck
+npm run dev
+```
+
+Production build validation:
+
+```bash
+npm run build
+```
+
+Every push to `main` also runs GitHub Actions validation for the Prisma schema, TypeScript, and the optimized production build.
+
+## Campaign lifecycle implemented so far
+
+```text
+Campaign Builder
+      ↓
+Validate intake
+      ↓
+Create/reuse Customer
+      ↓
+Create Customer Admin identity
+      ↓
+Create Campaign (DRAFT)
+      ↓
+Attach Territories + Targeting Profile
+      ↓
+Audit Event
+      ↓
+APS-only activation
+      ↓
+Campaign READY
+      ↓
+Queue FIND_LEADS job
+```
+
+The final box is intentionally a queue record only. No lead-source provider is called in Step 2.
+
+## Targeting guardrail
+
+APS campaign targeting must not use protected-class or sensitive-personal-data criteria. The current builder is structured around lawful property, geography, business, and service-relevance signals. Provider-specific compliance controls will be layered in before outreach is enabled.
+
+## Not implemented yet
+
+Step 2 intentionally does **not** connect or launch:
+
+- PropWire / BatchLeads / BatchData sourcing
+- PhantomBuster automations
+- TextGrid outbound or inbound SMS
+- Email/calling providers
+- AI reply or qualification agents
+- Automated appointments
+- Client lead delivery
+- Optimization/retraining loops
+
+Those are downstream steps and should plug into the `ProviderJob`, lead, compliance, conversation, qualification, and delivery models already established.
