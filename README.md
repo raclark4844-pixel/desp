@@ -81,6 +81,8 @@ Copy `.env.example` to `.env.local` for local Next.js development.
 - `BATCHDATA_API_KEY` — optional in Step 3; when present, BatchData becomes the preferred automated property-data route
 - `PHANTOMBUSTER_API_KEY` — optional supplemental commercial/custom prospecting automation route
 
+For Vercel production, `DATABASE_URL` must be configured in the project environment before deployment.
+
 Never commit database credentials, API keys, or `.env*` secret files.
 
 ## Development
