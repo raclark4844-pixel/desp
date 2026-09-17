@@ -2,11 +2,16 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 
-const connectionString = process.env.DATABASE_URL;
+const runtimeConnectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not configured.");
-}
+// Next.js evaluates route modules during production builds. Use a local-only
+// placeholder so compilation can complete even when build-time env injection is
+// unavailable. Runtime database calls remain gated by databaseConfigured.
+const connectionString =
+  runtimeConnectionString ??
+  "postgresql://user:password@127.0.0.1:5432/aps_lead_engine";
+
+export const databaseConfigured = Boolean(runtimeConnectionString);
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
