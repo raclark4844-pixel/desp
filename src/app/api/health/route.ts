@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { databaseConfigured, db } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  if (!databaseConfigured) {
+    return NextResponse.json(
+      {
+        ok: false,
+        service: "aps-lead-engine",
+        database: "not_configured",
+      },
+      { status: 503 },
+    );
+  }
+
   try {
     await db.$queryRaw`SELECT 1`;
     return NextResponse.json({
@@ -14,7 +26,11 @@ export async function GET() {
   } catch (error) {
     console.error("health check failed", error);
     return NextResponse.json(
-      { ok: false, service: "aps-lead-engine", database: "unavailable" },
+      {
+        ok: false,
+        service: "aps-lead-engine",
+        database: "unavailable",
+      },
       { status: 503 },
     );
   }
