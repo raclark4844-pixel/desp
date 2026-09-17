@@ -1,5 +1,10 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildLeadSourcePlan } from "@/lib/lead-sources/router";
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
 
 export async function dispatchLeadSourceJob(jobId: string) {
   return db.$transaction(async (tx) => {
@@ -61,13 +66,15 @@ export async function dispatchLeadSourceJob(jobId: string) {
     });
 
     if (plan.selected.length === 0) {
+      const failedPayload = toPrismaJson({ plan });
+
       await tx.providerJob.update({
         where: { id: jobId },
         data: {
           status: "FAILED",
           error: "No eligible lead source is available for this campaign.",
           finishedAt: new Date(),
-          output: { plan },
+          output: failedPayload,
         },
       });
 
@@ -78,7 +85,7 @@ export async function dispatchLeadSourceJob(jobId: string) {
           eventType: "lead_source.routing_failed",
           actorType: "APS_ORCHESTRATOR",
           actorId: jobId,
-          payload: { plan },
+          payload: failedPayload,
         },
       });
 
@@ -107,6 +114,11 @@ export async function dispatchLeadSourceJob(jobId: string) {
     }> = [];
 
     for (const route of plan.selected) {
+      const leadSourceConfig = toPrismaJson({
+        executionMode: route.executionMode,
+        automated: route.automated,
+      });
+
       const leadSource = await tx.leadSource.upsert({
         where: { key: route.leadSourceKey },
         create: {
@@ -114,20 +126,24 @@ export async function dispatchLeadSourceJob(jobId: string) {
           name: route.name,
           providerType: route.providerType,
           isActive: true,
-          config: {
-            executionMode: route.executionMode,
-            automated: route.automated,
-          },
+          config: leadSourceConfig,
         },
         update: {
           name: route.name,
           providerType: route.providerType,
           isActive: true,
-          config: {
-            executionMode: route.executionMode,
-            automated: route.automated,
-          },
+          config: leadSourceConfig,
         },
+      });
+
+      const childJobInput = toPrismaJson({
+        parentJobId: jobId,
+        provider: route.provider,
+        executionMode: route.executionMode,
+        automated: route.automated,
+        desiredLeadCount: route.desiredLeadCount,
+        reasons: route.reasons,
+        query: route.query,
       });
 
       const childJob = await tx.providerJob.create({
@@ -137,15 +153,7 @@ export async function dispatchLeadSourceJob(jobId: string) {
           provider: route.provider,
           jobType: route.executionMode === "MANUAL_EXPORT" ? "SOURCE_LEADS_MANUAL" : "SOURCE_LEADS",
           status: "QUEUED",
-          input: {
-            parentJobId: jobId,
-            provider: route.provider,
-            executionMode: route.executionMode,
-            automated: route.automated,
-            desiredLeadCount: route.desiredLeadCount,
-            reasons: route.reasons,
-            query: route.query,
-          },
+          input: childJobInput,
         },
       });
 
@@ -167,12 +175,13 @@ export async function dispatchLeadSourceJob(jobId: string) {
       queuedJobs,
       nextWorkflow: "SOURCE_LEADS",
     };
+    const jsonOutput = toPrismaJson(output);
 
     await tx.providerJob.update({
       where: { id: jobId },
       data: {
         status: "SUCCEEDED",
-        output,
+        output: jsonOutput,
         finishedAt: new Date(),
       },
     });
@@ -184,7 +193,7 @@ export async function dispatchLeadSourceJob(jobId: string) {
         eventType: "lead_source.routed",
         actorType: "APS_ORCHESTRATOR",
         actorId: jobId,
-        payload: output,
+        payload: jsonOutput,
       },
     });
 
