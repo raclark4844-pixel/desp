@@ -8,6 +8,7 @@ function toPrismaJson(value: unknown): Prisma.InputJsonValue {
 
 export async function dispatchLeadSourceJob(jobId: string) {
   return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderJob" WHERE id = ${jobId}::uuid FOR UPDATE`;
     const parentJob = await tx.providerJob.findUnique({
       where: { id: jobId },
       include: {
@@ -23,7 +24,10 @@ export async function dispatchLeadSourceJob(jobId: string) {
       return { kind: "not_found" as const };
     }
 
-    if (parentJob.provider !== "APS_ORCHESTRATOR" || parentJob.jobType !== "FIND_LEADS") {
+    if (
+      parentJob.provider !== "APS_ORCHESTRATOR" ||
+      parentJob.jobType !== "FIND_LEADS"
+    ) {
       return {
         kind: "invalid_job" as const,
         jobId,
@@ -49,6 +53,12 @@ export async function dispatchLeadSourceJob(jobId: string) {
     }
 
     const campaign = parentJob.campaign;
+    if (!["READY", "RUNNING"].includes(campaign.status))
+      return {
+        kind: "invalid_status" as const,
+        jobId,
+        status: parentJob.status,
+      };
     const plan = buildLeadSourcePlan({
       campaignId: campaign.id,
       customerId: campaign.customerId,
@@ -131,7 +141,6 @@ export async function dispatchLeadSourceJob(jobId: string) {
         update: {
           name: route.name,
           providerType: route.providerType,
-          isActive: true,
           config: leadSourceConfig,
         },
       });
@@ -149,9 +158,13 @@ export async function dispatchLeadSourceJob(jobId: string) {
       const childJob = await tx.providerJob.create({
         data: {
           campaignId: campaign.id,
+          idempotencyKey: `source:${jobId}:${route.provider}`,
           leadSourceId: leadSource.id,
           provider: route.provider,
-          jobType: route.executionMode === "MANUAL_EXPORT" ? "SOURCE_LEADS_MANUAL" : "SOURCE_LEADS",
+          jobType:
+            route.executionMode === "MANUAL_EXPORT"
+              ? "SOURCE_LEADS_MANUAL"
+              : "SOURCE_LEADS",
           status: "QUEUED",
           input: childJobInput,
         },

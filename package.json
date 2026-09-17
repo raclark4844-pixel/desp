@@ -1,6 +1,6 @@
 {
   "name": "aps-lead-engine",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/check-source-config.mjs && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
@@ -16,7 +16,9 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "typecheck": "prisma generate && tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "tsx --test tests/source.unit.test.ts",
+    "test:integration": "tsx --test tests/source.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -34,6 +36,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "prisma": "7.10.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.2"
   }
 }

@@ -9,7 +9,7 @@ export function getLeadSourceProviderDefinitions(): LeadSourceProviderDefinition
       providerType: "PROPERTY_DATA",
       executionMode: "API",
       capabilities: ["PROPERTY_SEARCH", "OWNER_CONTACT_ENRICHMENT"],
-      configured: Boolean(process.env.BATCHDATA_API_KEY),
+      configured: Boolean(process.env.BATCHDATA_API_KEY?.trim()),
       available: true,
     },
     {

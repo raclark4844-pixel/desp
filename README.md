@@ -159,3 +159,7 @@ The following remain downstream work after Step 3:
 - Optimization/retraining loops
 
 Those layers plug into the `ProviderJob`, lead, property, contact, consent, suppression, conversation, qualification, delivery, cost, and audit models already established.
+
+## Step 4 — source execution
+
+Queued property-source jobs now have protected execution/worker endpoints, a BatchData adapter, manual PropWire ingestion, lease recovery, bounded retries, audit events and transactional deduplication. No outreach is implemented. See [Step 4 operations and API guide](docs/step4-source-execution.md) for secrets, status transitions, import format, limits and deployment steps.

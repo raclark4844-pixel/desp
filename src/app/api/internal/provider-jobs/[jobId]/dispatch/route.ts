@@ -12,21 +12,30 @@ export async function POST(
   context: { params: Promise<{ jobId: string }> },
 ) {
   if (!isAuthorizedInternalRequest(request)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
   }
 
   const { jobId } = await context.params;
   const parsedId = jobIdSchema.safeParse(jobId);
 
   if (!parsedId.success) {
-    return NextResponse.json({ ok: false, error: "Invalid provider job ID." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "Invalid provider job ID." },
+      { status: 400 },
+    );
   }
 
   try {
     const result = await dispatchLeadSourceJob(parsedId.data);
 
     if (result.kind === "not_found") {
-      return NextResponse.json({ ok: false, error: "Provider job not found." }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: "Provider job not found." },
+        { status: 404 },
+      );
     }
 
     if (result.kind === "invalid_job" || result.kind === "invalid_status") {
@@ -38,7 +47,11 @@ export async function POST(
 
     if (result.kind === "no_source") {
       return NextResponse.json(
-        { ok: false, error: "No eligible lead source is available.", ...result },
+        {
+          ok: false,
+          error: "No eligible lead source is available.",
+          ...result,
+        },
         { status: 503 },
       );
     }

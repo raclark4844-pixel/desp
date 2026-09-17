@@ -5,9 +5,7 @@ export type LeadProviderKey = "BATCHDATA" | "PROPWIRE" | "PHANTOMBUSTER";
 export type LeadProviderExecutionMode = "API" | "AUTOMATION" | "MANUAL_EXPORT";
 
 export type LeadSourceCapability =
-  | "PROPERTY_SEARCH"
-  | "OWNER_CONTACT_ENRICHMENT"
-  | "BUSINESS_PROSPECTING";
+  "PROPERTY_SEARCH" | "OWNER_CONTACT_ENRICHMENT" | "BUSINESS_PROSPECTING";
 
 export type LeadSourceTerritory = {
   type: string;

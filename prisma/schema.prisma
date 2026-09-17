@@ -150,6 +150,8 @@ enum ProviderJobStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+  BLOCKED
+  WAITING_MANUAL
 }
 
 enum CostType {
@@ -184,16 +186,16 @@ model Customer {
 }
 
 model User {
-  id         String    @id @default(uuid()) @db.Uuid
-  customerId String?   @db.Uuid
-  email      String    @unique
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String?  @db.Uuid
+  email      String   @unique
   name       String?
   role       UserRole
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
-  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
   auditEvents AuditEvent[]
 
   @@index([customerId])
@@ -267,18 +269,19 @@ model Lead {
   customerId    String     @db.Uuid
   leadSourceId  String?    @db.Uuid
   externalRef   String?
+  identityKey   String?
   status        LeadStatus @default(NEW)
   firstName     String?
   lastName      String?
   companyName   String?
   score         Int?
   scoreReason   String?
-  sourcePayload Json        @default("{}")
-  firstSeenAt   DateTime    @default(now()) @db.Timestamptz(6)
-  lastUpdatedAt DateTime    @updatedAt @db.Timestamptz(6)
+  sourcePayload Json       @default("{}")
+  firstSeenAt   DateTime   @default(now()) @db.Timestamptz(6)
+  lastUpdatedAt DateTime   @updatedAt @db.Timestamptz(6)
 
   customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  leadSource     LeadSource?      @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+  leadSource     LeadSource?     @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
   properties     Property[]
   contacts       Contact[]
   campaignLeads  CampaignLead[]
@@ -287,9 +290,10 @@ model Lead {
   appointments   Appointment[]
   deliveries     Delivery[]
   suppressions   Suppression[]
-  costs           Cost[]
-  auditEvents     AuditEvent[]
+  costs          Cost[]
+  auditEvents    AuditEvent[]
 
+  @@unique([customerId, identityKey])
   @@index([customerId, status])
   @@index([leadSourceId, externalRef])
   @@index([score])
@@ -503,40 +507,47 @@ model Delivery {
 }
 
 model ProviderJob {
-  id            String            @id @default(uuid()) @db.Uuid
-  campaignId    String            @db.Uuid
-  leadSourceId  String?           @db.Uuid
-  provider      String
-  jobType       String
-  externalJobId String?
-  status        ProviderJobStatus @default(QUEUED)
-  input         Json              @default("{}")
-  output        Json              @default("{}")
-  error         String?
-  startedAt     DateTime?         @db.Timestamptz(6)
-  finishedAt    DateTime?         @db.Timestamptz(6)
-  createdAt     DateTime          @default(now()) @db.Timestamptz(6)
+  id             String            @id @default(uuid()) @db.Uuid
+  campaignId     String            @db.Uuid
+  leadSourceId   String?           @db.Uuid
+  provider       String
+  jobType        String
+  externalJobId  String?
+  idempotencyKey String?           @unique
+  attemptCount   Int               @default(0)
+  nextAttemptAt  DateTime?         @db.Timestamptz(6)
+  leaseToken     String?           @db.Uuid
+  leaseExpiresAt DateTime?         @db.Timestamptz(6)
+  receipts       SourceReceipt[]
+  status         ProviderJobStatus @default(QUEUED)
+  input          Json              @default("{}")
+  output         Json              @default("{}")
+  error          String?
+  startedAt      DateTime?         @db.Timestamptz(6)
+  finishedAt     DateTime?         @db.Timestamptz(6)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
 
   campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   leadSource LeadSource? @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
 
   @@index([campaignId, status])
   @@index([provider, externalJobId])
+  @@index([jobType, status, nextAttemptAt])
 }
 
 model Cost {
-  id           String    @id @default(uuid()) @db.Uuid
-  customerId   String?   @db.Uuid
-  campaignId   String?   @db.Uuid
-  leadId       String?   @db.Uuid
-  leadSourceId String?   @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
+  customerId   String?  @db.Uuid
+  campaignId   String?  @db.Uuid
+  leadId       String?  @db.Uuid
+  leadSourceId String?  @db.Uuid
   type         CostType
   provider     String?
-  amount       Decimal   @db.Decimal(12, 4)
-  currency     String    @default("USD")
-  quantity     Decimal?  @db.Decimal(12, 4)
-  metadata     Json      @default("{}")
-  incurredAt   DateTime  @default(now()) @db.Timestamptz(6)
+  amount       Decimal  @db.Decimal(12, 4)
+  currency     String   @default("USD")
+  quantity     Decimal? @db.Decimal(12, 4)
+  metadata     Json     @default("{}")
+  incurredAt   DateTime @default(now()) @db.Timestamptz(6)
 
   customer   Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
   campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -571,4 +582,16 @@ model AuditEvent {
   @@index([campaignId, createdAt])
   @@index([leadId, createdAt])
   @@index([eventType, createdAt])
+}
+
+model SourceReceipt {
+  id        String      @id @default(uuid()) @db.Uuid
+  jobId     String      @db.Uuid
+  key       String
+  digest    String
+  result    Json
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  job       ProviderJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, key])
 }

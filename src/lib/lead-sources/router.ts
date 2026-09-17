@@ -47,7 +47,9 @@ function scoreProvider(
   if (provider.key === "PROPWIRE") {
     score += 55;
     reasons.push("Available as the current property-data fallback.");
-    reasons.push("Queued as a manual export/import workflow until approved API access is available.");
+    reasons.push(
+      "Queued as a manual export/import workflow until approved API access is available.",
+    );
 
     if (context.residential) {
       score += 10;
@@ -56,15 +58,22 @@ function scoreProvider(
 
   if (provider.key === "PHANTOMBUSTER") {
     if (!provider.configured) {
-      return { score: -1, reasons: ["PHANTOMBUSTER_API_KEY is not configured."] };
+      return {
+        score: -1,
+        reasons: ["PHANTOMBUSTER_API_KEY is not configured."],
+      };
     }
 
     score += 35;
-    reasons.push("Automation connector is configured for supplemental public/business prospecting.");
+    reasons.push(
+      "Automation connector is configured for supplemental public/business prospecting.",
+    );
 
     if (context.commercial || context.industry === "other") {
       score += 35;
-      reasons.push("Commercial/custom campaign can benefit from business prospecting data.");
+      reasons.push(
+        "Commercial/custom campaign can benefit from business prospecting data.",
+      );
     }
   }
 
@@ -83,7 +92,8 @@ function toRoute(
     name: provider.name,
     providerType: provider.providerType,
     executionMode: provider.executionMode,
-    automated: provider.executionMode !== "MANUAL_EXPORT" && provider.configured,
+    automated:
+      provider.executionMode !== "MANUAL_EXPORT" && provider.configured,
     score,
     reasons,
     desiredLeadCount: context.desiredLeadCount,
@@ -99,7 +109,9 @@ function toRoute(
   };
 }
 
-export function buildLeadSourcePlan(context: LeadSourceCampaignContext): LeadSourcePlan {
+export function buildLeadSourcePlan(
+  context: LeadSourceCampaignContext,
+): LeadSourcePlan {
   const ranked = getLeadSourceProviderDefinitions()
     .map((provider) => {
       const ranking = scoreProvider(provider, context);

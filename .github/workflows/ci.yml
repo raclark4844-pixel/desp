@@ -21,7 +21,9 @@ jobs:
         with:
           node-version: 20.19.0
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+      - name: Source adapter and guardrail tests
+        run: npm test
       - name: Validate Prisma schema
         run: npm run db:validate
       - name: Typecheck

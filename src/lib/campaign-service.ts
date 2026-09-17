@@ -145,6 +145,7 @@ export async function createCampaignIntake(input: CampaignIntake) {
 
 export async function activateCampaign(campaignId: string) {
   return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Campaign" WHERE id = ${campaignId}::uuid FOR UPDATE`;
     const campaign = await tx.campaign.findUnique({
       where: { id: campaignId },
     });
