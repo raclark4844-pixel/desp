@@ -276,6 +276,6 @@ nav .ap-spartan-brand { margin-bottom: 0; }
 .customer-table small { display: block; margin-top: 8px; color: var(--muted); font-size: .7rem; font-weight: 400; }
 
 .sending-workspace button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-soft); color: var(--text); font: inherit; cursor: pointer; }
-.sending-workspace button.primary-button { background: var(--accent); color: #101600; font-weight: 700; }
+.sending-workspace button.primary-button { background: var(--yellow); color: #101600; font-weight: 700; }
 .sending-workspace button:disabled { opacity: .55; cursor: wait; }
 .sending-workspace select, .sending-workspace textarea { width: 100%; min-width: 0; }
