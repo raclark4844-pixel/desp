@@ -255,8 +255,15 @@ nav .ap-spartan-brand { margin-bottom: 0; }
 .demore-brand p { margin: 8px 0 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .demore-brand strong { color: var(--text); font-weight: 600; }
 @media (max-width: 600px) {
-  .company-branding { flex-wrap: wrap; gap: 20px; }
-  .demore-logo { width: 240px; }
+  .company-branding { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: center; }
+  .company-branding .ap-spartan-brand { flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+  .company-branding .ap-spartan-logo { width: 60px; max-width: 100%; }
+  .company-branding .ap-spartan-brand strong { font-size: 1rem; }
+  .company-branding .ap-spartan-brand span { font-size: .55rem; letter-spacing: .12em; margin-top: 4px; }
+  .demore-brand { width: 100%; min-width: 0; }
+  .demore-logo { width: 100%; }
+  .demore-brand p { font-size: .65rem; overflow-wrap: anywhere; }
+  .demore-brand strong { display: block; }
 }
 .home-actions { display: flex; flex-wrap: wrap; gap: 24px; margin: 28px 0; }
 .customer-directory-search { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 28px 0; }
