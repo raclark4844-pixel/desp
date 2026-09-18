@@ -1,4 +1,4 @@
-# APS Lead Engine — Steps 1–7
+# APS Lead Engine — Steps 1–8
 
 APS Lead Engine is the backend and campaign-intake foundation for AP Spartan's multi-industry lead-generation platform. The system is designed so one permanent customer/campaign/lead identity follows a prospect through sourcing, enrichment, compliance, outreach, qualification, delivery, and reporting.
 
@@ -173,3 +173,7 @@ Protected evidence and evaluation APIs check consent, contact verification, camp
 ## Step 7 — operations dashboard
 
 Open `/operations` for a protected, read-only view of customers, campaigns, jobs, activity and setup readiness. Sign in using the existing APS internal access key. See [dashboard access and limitations](docs/step7-operations-dashboard.md).
+
+## Step 8 — operator contact review
+
+Select a campaign in operations and open its masked contact review. Operators can run readiness checks and record documented evidence with explicit key authorization. Outreach stays disabled. See [review guide](docs/step8-operator-review.md) and [verification provider pricing and account requirements](docs/verification-provider-options.md).

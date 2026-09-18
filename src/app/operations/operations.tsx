@@ -260,6 +260,16 @@ export default function Operations() {
                   Showing the 50 most recent campaigns.
                 </p>
               ) : null}
+              {data.campaign ? (
+                <p>
+                  <Link
+                    href={`/operations/review?campaignId=${data.campaign.id}`}
+                    className="secondary-button"
+                  >
+                    Review campaign contacts →
+                  </Link>
+                </p>
+              ) : null}
               <div className={styles.metrics}>
                 <article>
                   <span>Enrolled leads</span>
