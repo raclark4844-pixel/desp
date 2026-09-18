@@ -12,9 +12,9 @@ export default async function NewCampaignPage() {
   await requireEmployeePage();
   return (
     <main className="page-shell">
+      <Brand />
       <section className="hero-panel">
         <div>
-          <Brand />
           <h1>Create a campaign draft</h1>
           <p className="hero-copy">
             Define the customer, industry, territory, lead volume, targeting criteria, and requested communication channels.

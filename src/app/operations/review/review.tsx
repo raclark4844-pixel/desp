@@ -174,12 +174,12 @@ export default function Review({ campaignId }: { campaignId: string }) {
   }
   return (
     <main className="page-shell">
+      <Brand />
       <nav className={styles.nav}>
         <Link href="/operations">← Operations</Link>
         <span>Outreach remains off</span>
       </nav>
       <header>
-        <Brand />
         <p className="eyebrow">OPERATOR REVIEW</p>
         <h1>Review before action.</h1>
         <p className="hero-copy">

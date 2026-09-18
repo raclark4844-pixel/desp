@@ -247,3 +247,14 @@ nav .ap-spartan-brand { margin-bottom: 0; }
 .employee-form input[type=checkbox] { width: auto; justify-self: start; }
 .employee-form button { margin-top: 12px; }
 .employee-nav { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 24px; }
+
+.company-branding { display: flex; justify-content: space-between; align-items: center; gap: 24px; width: 100%; margin-bottom: 32px; }
+.company-branding .ap-spartan-brand { margin-bottom: 0; }
+.demore-brand { margin-left: auto; text-align: right; max-width: 100%; }
+.demore-logo { display: block; width: 320px; max-width: 100%; height: auto; margin-left: auto; border-radius: 8px; }
+.demore-brand p { margin: 8px 0 0; color: var(--muted); font-size: .75rem; line-height: 1.5; }
+.demore-brand strong { color: var(--text); font-weight: 600; }
+@media (max-width: 600px) {
+  .company-branding { flex-wrap: wrap; gap: 20px; }
+  .demore-logo { width: 240px; }
+}

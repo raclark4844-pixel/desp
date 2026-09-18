@@ -79,10 +79,9 @@ export default function Operations() {
   }
   return (
     <main className="page-shell">
+      <Brand />
       <nav className={styles.nav} aria-label="Main navigation">
-        <Link href="/operations">
-          <Brand />
-        </Link>
+        <Link href="/operations">Operations</Link>
         <Link href="/campaigns/new">Create a campaign ↗</Link>
       </nav>
       <header className={styles.header}>
