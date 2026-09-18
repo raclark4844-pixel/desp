@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 export default async function OperationsPage() {
   const employee = await requireEmployeePage();
-  return <><div className="page-shell" style={{ paddingBottom: 0 }}><nav className="employee-nav"><span>Signed in as {employee.name}</span><Link href="/account">My account</Link>{employee.isAdmin && <Link href="/admin/users">Manage employees</Link>}</nav></div><Operations /></>;
+  return <><div className="page-shell" style={{ paddingBottom: 0 }}><nav className="employee-nav"><span>Signed in as {employee.name}</span><Link href="/customers">Customers</Link><Link href="/account">My account</Link>{employee.isAdmin && <Link href="/admin/users">Manage employees</Link>}</nav></div><Operations /></>;
 }

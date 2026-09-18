@@ -258,3 +258,12 @@ nav .ap-spartan-brand { margin-bottom: 0; }
   .company-branding { flex-wrap: wrap; gap: 20px; }
   .demore-logo { width: 240px; }
 }
+.home-actions { display: flex; flex-wrap: wrap; gap: 24px; margin: 28px 0; }
+.customer-directory-search { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 28px 0; }
+.customer-directory-search label { display: grid; gap: 8px; flex: 1 1 260px; }
+.customer-table-scroll { overflow-x: auto; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 12px; }
+.customer-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .9rem; }
+.customer-table caption { text-align: left; padding: 16px; color: var(--muted); }
+.customer-table th, .customer-table td { padding: 16px; border-bottom: 1px solid var(--border); vertical-align: top; min-width: 140px; max-width: 300px; overflow-wrap: anywhere; }
+.customer-table thead { background: var(--panel-soft); }
+.customer-table small { display: block; margin-top: 8px; color: var(--muted); font-size: .7rem; font-weight: 400; }
