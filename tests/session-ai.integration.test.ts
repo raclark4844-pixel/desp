@@ -9,12 +9,16 @@ import {
   requireAiSession,
 } from "../src/lib/inbox/ai-session";
 import { monitorSession, approveObservation } from "../src/lib/inbox/monitor";
-import { setPrimaryContact, queueHandoff } from "../src/lib/inbox/handoff";
+import {
+  setPrimaryContact,
+  queueHandoff,
+  handoffPreview,
+} from "../src/lib/inbox/handoff";
 import { dispatchNotification } from "../src/lib/inbox/notifications";
 import { GET, POST } from "../src/app/api/employee/ai-session/route";
 
 test(
-  "session permission, monitored drafts, revocation and employee handoff",
+  "session permission, monitored drafts, revocation and customer lead delivery",
   { skip: process.env.APS_ISOLATED_TEST_DB !== "true" },
   async () => {
     const env = { ...process.env },
@@ -83,6 +87,16 @@ test(
       const lead = await db.lead.create({
         data: {
           customerId,
+          firstName: "Sam",
+          lastName: "Prospect",
+          properties: {
+            create: {
+              address1: "123 Test Street",
+              city: "Example",
+              state: "DC",
+              postalCode: "20001",
+            },
+          },
           contacts: {
             create: {
               type: "MOBILE",
@@ -111,25 +125,31 @@ test(
           body: "Yes, I want to proceed.",
         },
       });
-      const target = await db.notificationTarget.create({
-        data: {
-          campaignId: campaign.id,
-          employeeId,
-          channel: "SMS",
-          destination: "+12025550119",
-          confirmedAt: new Date(),
-        },
-      });
       await setPrimaryContact(
-        { campaignId: campaign.id, targetId: target.id },
+        {
+          campaignId: campaign.id,
+          name: "Customer Main Contact",
+          phone: "+12025550119",
+          confirm: true,
+        },
         employeeId,
       );
+      const target = await db.notificationTarget.findFirstOrThrow({
+        where: { campaignId: campaign.id, kind: "CUSTOMER" },
+      });
+      assert.equal(target.employeeId, null);
+      const preview = await handoffPreview(conversation.id);
+      assert.equal(preview.fields.name, "Sam Prospect");
+      assert.match(preview.fields.address, /123 Test Street/);
+      assert.equal(preview.fields.phone, contact.normalizedValue);
+      assert.equal(preview.fields.email, "");
+      assert.equal(preview.fields.service, "");
       const handoff = {
         conversationId: conversation.id,
         targetId: target.id,
         sourceMessageId: message.id,
         expectedPhone: target.destination,
-        body: "The contact wants to proceed. Please follow up.",
+        fields: { ...preview.fields, service: "Roof replacement" },
         confirm: true,
       };
       await assert.rejects(
@@ -145,9 +165,35 @@ test(
       const assigned = await db.conversation.findUniqueOrThrow({
         where: { id: conversation.id },
       });
-      assert.equal(assigned.assignedTo, employeeId);
+      assert.equal(assigned.assignedTo, null);
       assert.equal(assigned.status, "QUALIFIED");
       assert.equal(assigned.campaignHold, true);
+      Object.assign(process.env, {
+        VERCEL_ENV: "production",
+        INBOX_NOTIFICATIONS_ENABLED: "true",
+        INBOX_SMS_NOTIFICATIONS_VERIFIED: "true",
+        TWILIO_ACCOUNT_SID: "ACsynthetic",
+        TWILIO_AUTH_TOKEN: "synthetic",
+        INBOX_NOTIFICATION_SMS_FROM: "+12025550999",
+        OUTREACH_PUBLIC_URL: "https://test.example",
+      });
+      let deliveries = 0;
+      global.fetch = async (url, init) => {
+        deliveries++;
+        assert.match(String(url), /api.twilio.com/);
+        const body = new URLSearchParams(String(init?.body));
+        assert.equal(body.get("To"), target.destination);
+        assert.notEqual(body.get("To"), contact.normalizedValue);
+        assert.match(body.get("Body")!, /Name: Sam Prospect/);
+        assert.match(body.get("Body")!, /Service requested: Roof replacement/);
+        assert.match(body.get("Body")!, /Email: Not provided/);
+        return Response.json({ sid: "SMsyntheticcustomerhandoff" });
+      };
+      assert.equal(await dispatchNotification(), "NOTIFICATION_ACCEPTED");
+      assert.equal(deliveries, 1);
+      assert.equal((await queueHandoff(handoff, employeeId)).status, "SENT");
+      assert.equal(await dispatchNotification(), "NO_NOTIFICATION_READY");
+      process.env.INBOX_NOTIFICATIONS_ENABLED = "false";
       Object.assign(process.env, {
         INBOX_AI_ENABLED: "true",
         OPENAI_API_KEY: "synthetic",

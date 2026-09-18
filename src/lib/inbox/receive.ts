@@ -63,7 +63,7 @@ export async function persistInbound(
       },
     });
   const targets = await tx.notificationTarget.findMany({
-    where: { campaignId: c.campaignId, enabled: true },
+    where: { campaignId: c.campaignId, enabled: true, kind: "EMPLOYEE" },
   });
   if (targets.length)
     await tx.replyNotification.createMany({

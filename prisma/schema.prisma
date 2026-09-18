@@ -740,10 +740,12 @@ model InboxReply {
 }
 
 model NotificationTarget {
+  kind String @default("EMPLOYEE")
+  name String?
   id String @id @default(uuid()) @db.Uuid
   campaignId String @db.Uuid
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  employeeId String @db.Uuid
+  employeeId String? @db.Uuid
   channel String
   destination String
   enabled Boolean @default(true)

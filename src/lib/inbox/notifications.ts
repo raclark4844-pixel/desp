@@ -50,14 +50,17 @@ export async function dispatchNotification() {
       include: { target: true },
     });
     if (!job) return null;
-    const employee = await tx.employee.findFirst({
-      where: { id: job.target.employeeId, isActive: true },
-    });
+    const employee = job.target.employeeId
+      ? await tx.employee.findFirst({
+          where: { id: job.target.employeeId, isActive: true },
+        })
+      : null;
     if (
       !job.target.enabled ||
-      !employee ||
+      (job.target.kind === "EMPLOYEE" && !employee) ||
+      (job.target.kind === "CUSTOMER" && job.kind !== "LEAD_HANDOFF") ||
       (job.target.channel === "EMAIL" &&
-        employee.email.toLowerCase() !== job.target.destination.toLowerCase())
+        employee?.email.toLowerCase() !== job.target.destination.toLowerCase())
     ) {
       await tx.replyNotification.update({
         where: { id: job.id },
@@ -66,18 +69,31 @@ export async function dispatchNotification() {
       return null;
     }
     if (job.kind === "HANDOFF") {
+      await tx.replyNotification.update({
+        where: { id: job.id },
+        data: {
+          status: "CANCELLED",
+          reason: "Legacy employee handoff replaced by customer lead delivery.",
+        },
+      });
+      return null;
+    }
+    if (job.kind === "LEAD_HANDOFF") {
       const campaign = await tx.campaign.findUnique({
         where: { id: job.target.campaignId },
+        include: { customer: true },
       });
       if (
+        job.target.kind !== "CUSTOMER" ||
         job.destinationSnapshot !== job.target.destination ||
-        campaign?.primaryAlertTargetId !== job.targetId
+        campaign?.primaryAlertTargetId !== job.targetId ||
+        campaign.customer.status !== "ACTIVE"
       ) {
         await tx.replyNotification.update({
           where: { id: job.id },
           data: {
             status: "CANCELLED",
-            reason: "Primary contact changed after review.",
+            reason: "Campaign main contact changed or customer is inactive.",
           },
         });
         return null;
@@ -115,8 +131,8 @@ export async function dispatchNotification() {
     if (!base || !/^https:\/\/[^/]+$/.test(base))
       throw new Error("Public URL missing");
     const text =
-      work.kind === "HANDOFF"
-        ? `AP Spartan employee handoff: ${work.body ?? "A campaign contact wants to proceed."}\nReview: ${base}/inbox?conversation=${work.conversationId}`
+      work.kind === "LEAD_HANDOFF"
+        ? work.body!
         : `AP Spartan: A campaign contact replied. Sign in to review: ${base}/inbox?conversation=${work.conversationId}`;
     const email = work.target.channel === "EMAIL";
     const response = email

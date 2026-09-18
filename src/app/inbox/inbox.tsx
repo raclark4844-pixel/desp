@@ -6,6 +6,7 @@ type Campaign = {
   customerId: string;
   smsSenderId: string | null;
   primaryAlertTargetId: string | null;
+  customer: { contactName: string | null; profile: { phone?: string } | null };
 };
 type Employee = { id: string; name: string; email: string };
 type Conversation = {
@@ -34,7 +35,13 @@ type Detail = Conversation & {
   handoff: {
     target: { id: string; name: string; phone: string } | null;
     sourceMessageId: string | null;
-    suggestedBody: string;
+    fields: {
+      name: string;
+      address: string;
+      phone: string;
+      email: string;
+      service: string;
+    };
     alerts: {
       id: string;
       status: string;
@@ -62,7 +69,9 @@ type Detail = Conversation & {
 type Target = {
   id: string;
   campaignId: string;
-  employeeId: string;
+  employeeId: string | null;
+  kind: string;
+  name: string | null;
   channel: string;
   destination: string;
   enabled: boolean;
@@ -187,7 +196,7 @@ export default function Inbox({ admin }: { admin: boolean }) {
           : action === "SEND"
             ? `Reply status: ${result}`
             : action === "HANDOFF"
-              ? `Employee alert status: ${result?.status ?? "PENDING"}. Pending means queued, not sent.`
+              ? `Lead delivery status: ${result?.status ?? "PENDING"}. Pending means queued, not sent.`
               : "Saved.",
       );
       return true;
@@ -374,9 +383,7 @@ export default function Inbox({ admin }: { admin: boolean }) {
                   )}
                 </div>
                 <details className="inbox-draft">
-                  <summary>
-                    Person wants to proceed — notify primary employee
-                  </summary>
+                  <summary>Send qualified lead to campaign contact</summary>
                   {conversation.handoff.target &&
                   conversation.handoff.sourceMessageId ? (
                     <form
@@ -393,7 +400,13 @@ export default function Inbox({ admin }: { admin: boolean }) {
                           targetId: conversation.handoff.target!.id,
                           expectedPhone: conversation.handoff.target!.phone,
                           sourceMessageId: conversation.handoff.sourceMessageId,
-                          body: f.body,
+                          fields: {
+                            name: f.name,
+                            address: f.address,
+                            phone: f.phone,
+                            email: f.email,
+                            service: f.service,
+                          },
                           confirm: f.confirm === "on",
                         });
                       }}
@@ -403,41 +416,59 @@ export default function Inbox({ admin }: { admin: boolean }) {
                         <strong>{conversation.handoff.target.name}</strong> ·{" "}
                         {conversation.handoff.target.phone}
                       </p>
-                      <label>
-                        Employee notification
-                        <textarea
-                          name="body"
-                          defaultValue={conversation.handoff.suggestedBody}
-                          maxLength={500}
-                          rows={3}
-                          required
-                        />
-                      </label>
                       <p>
-                        A secure link to this conversation will be added. This
-                        alerts your teammate, not the prospect.
+                        Review the prospect’s details below. Missing details
+                        stay blank. Email is optional; the other fields are
+                        required. Confirm the requested service from the
+                        conversation.
+                      </p>
+                      {(
+                        [
+                          ["name", "Prospect name", 120],
+                          ["address", "Property / service address", 250],
+                          ["phone", "Prospect phone (+1…)", 12],
+                          ["email", "Prospect email (optional)", 254],
+                          ["service", "Service requested", 200],
+                        ] as const
+                      ).map(([key, label, max]) => (
+                        <label key={key}>
+                          {label}
+                          <input
+                            name={key}
+                            defaultValue={conversation.handoff.fields[key]}
+                            maxLength={max}
+                            type={key === "email" ? "email" : "text"}
+                            required={key !== "email"}
+                          />
+                        </label>
+                      ))}
+                      <p>
+                        The text will include the campaign name and these five
+                        fields. It goes to the campaign’s main customer contact
+                        shown above.
                       </p>
                       <label className="inbox-check">
                         <input type="checkbox" name="confirm" required />I
-                        confirmed the person wants to proceed and reviewed this
-                        text and recipient.
+                        confirmed the prospect wants this service, agreed to
+                        share these details with the campaign contact, and I
+                        reviewed the information and recipient.
                       </label>
                       <button disabled={busy}>
                         {data.notificationsEnabled
-                          ? "Queue text to primary employee"
-                          : "Save handoff — texting alerts are off"}
+                          ? "Send lead by text"
+                          : "Save lead for sending — texting is off"}
                       </button>
                     </form>
                   ) : (
                     <p>
-                      An administrator must select a primary employee with an
-                      enabled mobile alert destination in Campaign settings. An
+                      An administrator must save the campaign’s main customer
+                      contact and mobile number in Campaign settings. An
                       incoming response is also required.
                     </p>
                   )}
                   {conversation.handoff.alerts.map((a) => (
                     <p key={a.id}>
-                      Employee handoff: {a.status} ·{" "}
+                      Lead delivery: {a.status} ·{" "}
                       {new Date(a.createdAt).toLocaleString()}
                     </p>
                   ))}
@@ -666,11 +697,11 @@ export default function Inbox({ admin }: { admin: boolean }) {
                   </form>
                 </details>
               )}
-              <h3>Campaign primary employee</h3>
+              <h3>Campaign main contact — lead delivery</h3>
               <p>
-                Choose the AP Spartan teammate who should receive a text when a
-                contact wants to proceed. Add their mobile alert destination
-                below first.
+                This is the customer/company contact who receives qualified
+                leads by text, not an AP Spartan employee. Confirm their mobile
+                number and permission to receive lead details.
               </p>
               <form
                 key={campaign + currentCampaign.primaryAlertTargetId}
@@ -678,37 +709,61 @@ export default function Inbox({ admin }: { admin: boolean }) {
                   const f = form(e);
                   void change("PRIMARY_CONTACT", {
                     campaignId: campaign,
-                    targetId: f.targetId || null,
+                    name: f.name,
+                    phone: f.phone,
+                    confirm: f.confirm === "on",
                   });
                 }}
               >
                 <label>
-                  Primary employee
-                  <select
-                    name="targetId"
+                  Main contact name
+                  <input
+                    name="name"
+                    required
                     disabled={!admin}
-                    defaultValue={currentCampaign.primaryAlertTargetId || ""}
-                  >
-                    <option value="">Choose employee</option>
-                    {data.targets
-                      .filter(
+                    maxLength={120}
+                    defaultValue={
+                      data.targets.find(
                         (t) =>
-                          t.campaignId === campaign &&
-                          t.channel === "SMS" &&
-                          t.enabled,
-                      )
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {
-                            data.employees.find((e) => e.id === t.employeeId)
-                              ?.name
-                          }{" "}
-                          · {t.destination}
-                        </option>
-                      ))}
-                  </select>
+                          t.id === currentCampaign.primaryAlertTargetId &&
+                          t.kind === "CUSTOMER",
+                      )?.name ||
+                      currentCampaign.customer.contactName ||
+                      ""
+                    }
+                  />
                 </label>
-                <button disabled={!admin || busy}>Save primary employee</button>
+                <label>
+                  Main contact mobile (+1…)
+                  <input
+                    name="phone"
+                    required
+                    disabled={!admin}
+                    placeholder="+15551234567"
+                    defaultValue={
+                      data.targets.find(
+                        (t) =>
+                          t.id === currentCampaign.primaryAlertTargetId &&
+                          t.kind === "CUSTOMER",
+                      )?.destination ||
+                      currentCampaign.customer.profile?.phone ||
+                      ""
+                    }
+                  />
+                </label>
+                <label className="inbox-check">
+                  <input
+                    type="checkbox"
+                    name="confirm"
+                    required
+                    disabled={!admin}
+                  />
+                  I verified this campaign contact’s mobile number and
+                  permission to receive qualified lead details by text.
+                </label>
+                <button disabled={!admin || busy}>
+                  Save campaign main contact
+                </button>
               </form>
               <h3>Employee reply alerts</h3>
               <p>
@@ -719,7 +774,9 @@ export default function Inbox({ admin }: { admin: boolean }) {
                   : "External alerts are off until the delivery provider is configured."}
               </p>
               {data.targets
-                .filter((t) => t.campaignId === campaign)
+                .filter(
+                  (t) => t.campaignId === campaign && t.kind === "EMPLOYEE",
+                )
                 .map((t) => (
                   <div className="inbox-draft" key={t.id}>
                     {data.employees.find((e) => e.id === t.employeeId)?.name} ·{" "}

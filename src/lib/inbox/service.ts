@@ -43,6 +43,7 @@ export async function overview(campaignId?: string, cursor?: string) {
         customerId: true,
         smsSenderId: true,
         primaryAlertTargetId: true,
+        customer: { select: { contactName: true, profile: true } },
       },
     }),
     db.employee.findMany({
