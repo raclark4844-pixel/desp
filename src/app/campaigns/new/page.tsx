@@ -1,9 +1,10 @@
+import { Brand } from "@/components/brand";
 import type { Metadata } from "next";
 import { CampaignBuilder } from "@/components/campaign-builder";
 
 export const metadata: Metadata = {
   title: "Create Campaign",
-  description: "Create a draft APS lead-generation campaign with industry-specific targeting and territories.",
+  description: "Create a draft AP Spartan lead-generation campaign with industry-specific targeting and territories.",
 };
 
 export default function NewCampaignPage() {
@@ -11,7 +12,7 @@ export default function NewCampaignPage() {
     <main className="page-shell">
       <section className="hero-panel">
         <div>
-          <p className="eyebrow">APS LEAD ENGINE</p>
+          <Brand />
           <h1>Create a campaign draft</h1>
           <p className="hero-copy">
             Define the customer, industry, territory, lead volume, targeting criteria, and requested communication channels.

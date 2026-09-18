@@ -207,9 +207,9 @@ export function CampaignBuilder() {
       <section className="form-section">
         <div className="section-heading">
           <p className="step-label">CAMPAIGN</p>
-          <h2>What should APS build?</h2>
+          <h2>What should AP Spartan build?</h2>
           <p>
-            The campaign stays in draft until an authorized APS action activates
+            The campaign stays in draft until an authorized AP Spartan action activates
             it.
           </p>
         </div>

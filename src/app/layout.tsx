@@ -3,10 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "APS Lead Engine",
-    template: "%s | APS Lead Engine",
+    default: "AP Spartan Lead Engine",
+    template: "%s | AP Spartan Lead Engine",
   },
-  description: "APS campaign intake and lead-generation orchestration platform.",
+  description: "AP Spartan campaign intake and lead-generation orchestration platform.",
   robots: {
     index: false,
     follow: false,

@@ -1,4 +1,5 @@
 "use client";
+import { Brand } from "@/components/brand";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ReviewContacts } from "@/lib/operations/review";
@@ -184,6 +185,7 @@ export default function Review({ campaignId }: { campaignId: string }) {
         <span>Outreach remains off</span>
       </nav>
       <header>
+        <Brand />
         <p className="eyebrow">OPERATOR REVIEW</p>
         <h1>Review before action.</h1>
         <p className="hero-copy">
@@ -495,7 +497,7 @@ export default function Review({ campaignId }: { campaignId: string }) {
                 and channel, and understand this records an audit event.
               </label>
               <label>
-                APS internal key — required to save
+                AP Spartan internal key — required to save
                 <input
                   type="password"
                   autoComplete="off"

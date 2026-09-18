@@ -143,4 +143,4 @@ export function getIndustryProfile(industry: IndustryKey) {
 }
 
 export const prohibitedTargetingNotice =
-  "APS targeting must not use protected-class or sensitive-personal-data criteria. Campaign filters should remain limited to lawful property, geography, business, and service-relevance signals.";
+  "AP Spartan targeting must not use protected-class or sensitive-personal-data criteria. Campaign filters should remain limited to lawful property, geography, business, and service-relevance signals.";

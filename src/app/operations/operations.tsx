@@ -1,4 +1,5 @@
 "use client";
+import { Brand } from "@/components/brand";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { OperationsData } from "@/lib/operations/service";
@@ -73,7 +74,7 @@ export default function Operations() {
       });
       if (!response.ok)
         throw new Error(
-          "Access key not accepted. Check the APS internal key and try again.",
+          "Access key not accepted. Check the AP Spartan internal key and try again.",
         );
       setLocked(false);
       await load();
@@ -102,8 +103,8 @@ export default function Operations() {
   return (
     <main className="page-shell">
       <nav className={styles.nav} aria-label="Main navigation">
-        <Link href="/operations" className={styles.brand}>
-          AP SPARTAN <span>LEAD ENGINE</span>
+        <Link href="/operations">
+          <Brand />
         </Link>
         <Link href="/campaigns/new">Create a campaign ↗</Link>
       </nav>
@@ -135,11 +136,11 @@ export default function Operations() {
           <p className="eyebrow">PRIVATE WORKSPACE</p>
           <h2>Open operations</h2>
           <p className="hero-copy">
-            Use your APS internal access key. Access expires after 30 minutes.
+            Use your AP Spartan internal access key. Access expires after 30 minutes.
           </p>
           <form onSubmit={login}>
             <label>
-              APS access key
+              AP Spartan access key
               <input
                 type="password"
                 autoComplete="off"
@@ -155,7 +156,7 @@ export default function Operations() {
             </button>
           </form>
           <p className="microcopy">
-            For authorized APS operators. Your access key is not saved in
+            For authorized AP Spartan operators. Your access key is not saved in
             browser storage.
           </p>
         </section>
