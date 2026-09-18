@@ -1,6 +1,9 @@
 import type { SendChannel } from "./policy";
 export type DeliveryInput = {
   id: string;
+  smsFrom?: string;
+  replyToken?: string;
+  inboxReply?: boolean;
   channel: SendChannel;
   destination: string;
   body: string;
@@ -35,7 +38,10 @@ export const deliveryAdapter: DeliveryAdapter = {
           },
           body: JSON.stringify({
             from: env.OUTREACH_FROM_EMAIL,
-            reply_to: env.OUTREACH_REPLY_TO,
+            reply_to:
+              input.replyToken && env.INBOX_EMAIL_DOMAIN
+                ? `reply+${input.replyToken}@${env.INBOX_EMAIL_DOMAIN}`
+                : env.OUTREACH_REPLY_TO,
             to: [input.destination],
             subject: input.subject,
             text: `${input.senderName}\n\n${input.body}\n\nAdvertisement from ${input.senderName}\n${input.mailingAddress}\nUnsubscribe: ${unsubscribe}`,
@@ -46,11 +52,12 @@ export const deliveryAdapter: DeliveryAdapter = {
           }),
         });
       } else {
-        const callback = `${base}/api/outreach/twilio?id=${input.id}&action=status`;
+        const callback = `${base}/api/outreach/twilio?${input.inboxReply ? "reply" : "id"}=${input.id}&action=status`;
         const fields: Record<string, string> =
           input.channel === "SMS"
             ? {
                 To: input.destination,
+                ...(input.smsFrom ? { From: input.smsFrom } : {}),
                 MessagingServiceSid: env.TWILIO_MESSAGING_SERVICE_SID!,
                 Body: `${input.senderName}: ${input.body}\nReply STOP to opt out.`,
                 StatusCallback: callback,

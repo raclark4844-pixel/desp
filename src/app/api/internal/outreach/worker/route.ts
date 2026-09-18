@@ -1,3 +1,4 @@
+import { dispatchNotification } from "@/lib/inbox/notifications";
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { dispatchNext } from "@/lib/outreach/service";
@@ -7,9 +8,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 async function run() {
   try {
-    return NextResponse.json(await dispatchNext(), {
-      headers: { "Cache-Control": "no-store" },
-    });
+    const notification = await dispatchNotification();
+    return NextResponse.json(
+      { ...(await dispatchNext()), notification },
+      {
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch {
     return NextResponse.json(
       { error: "Sending worker unavailable." },

@@ -13,6 +13,7 @@ export default async function OperationsPage() {
       <div className="page-shell" style={{ paddingBottom: 0 }}>
         <nav className="employee-nav">
           <span>Signed in as {employee.name}</span>
+          <Link href="/inbox">Campaign inbox</Link>
           <Link href="/customers">Customers</Link>
           <Link href="/sending">Campaign sending</Link>
           <Link href="/account">My account</Link>

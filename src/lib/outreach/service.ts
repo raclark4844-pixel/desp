@@ -106,6 +106,24 @@ export async function controlBatch(raw: unknown, actorId: string) {
           fail(
             "Review the message, sender, audience timezone and consent before approving.",
           );
+        let smsFrom: string | null = null;
+        if (b.channel === "SMS") {
+          const sender = b.campaign.smsSenderId
+            ? await tx.smsSender.findUnique({
+                where: { id: b.campaign.smsSenderId },
+              })
+            : null;
+          if (
+            !sender ||
+            !sender.active ||
+            sender.customerId !== b.campaign.customerId ||
+            sender.serviceSid !== process.env.TWILIO_MESSAGING_SERVICE_SID
+          )
+            fail(
+              "Assign an approved texting number in the Inbox campaign settings first.",
+            );
+          smsFrom = sender!.phone;
+        }
         const contacts = await tx.contact.findMany({
           where: {
             type:
@@ -149,6 +167,7 @@ export async function controlBatch(raw: unknown, actorId: string) {
           where: { id: b.id },
           data: {
             status,
+            smsFrom,
             approvedBy: actorId,
             approvedAt: new Date(),
             queuedAt: new Date(),
@@ -347,6 +366,18 @@ export async function dispatchNext(adapter: DeliveryAdapter = deliveryAdapter) {
         include: { customer: true },
       });
       const setup = setupReasons(batch.channel, campaign.customerId);
+      if (batch.channel === "SMS") {
+        const sender = batch.smsFrom
+          ? await tx.smsSender.findUnique({ where: { phone: batch.smsFrom } })
+          : null;
+        if (
+          !sender ||
+          !sender.active ||
+          sender.customerId !== campaign.customerId ||
+          sender.serviceSid !== process.env.TWILIO_MESSAGING_SERVICE_SID
+        )
+          setup.push("CAMPAIGN_SENDER_REQUIRED");
+      }
       if (setup.length) {
         await tx.outboundBatch.update({
           where: { id: batch.id },
@@ -407,6 +438,12 @@ export async function dispatchNext(adapter: DeliveryAdapter = deliveryAdapter) {
         where: { key },
       });
       const reasons = [...result.reasons];
+      if (
+        await tx.conversation.count({
+          where: { leadId: recipient.leadId, campaignHold: true },
+        })
+      )
+        reasons.push("REPLY_REQUIRES_HUMAN");
       if (recipient.contact.normalizedValue !== recipient.destination)
         reasons.push("CONTACT_CHANGED_AFTER_APPROVAL");
       if (reservation && reservation.recipientId !== recipient.id)
@@ -433,9 +470,40 @@ export async function dispatchNext(adapter: DeliveryAdapter = deliveryAdapter) {
         await tx.outboundReservation.create({
           data: { key, recipientId: recipient.id },
         });
+      const priorMessage = recipient.messageId
+        ? await tx.message.findUnique({
+            where: { id: recipient.messageId },
+            include: { conversation: true },
+          })
+        : null;
+      const conversation =
+        priorMessage?.conversation ??
+        (await tx.conversation.create({
+          data: {
+            campaignId: batch.campaignId,
+            leadId: recipient.leadId,
+            contactId: recipient.contactId,
+            channel: batch.channel,
+            fromNumber: batch.smsFrom,
+          },
+        }));
+      const message =
+        priorMessage ??
+        (await tx.message.create({
+          data: {
+            conversationId: conversation.id,
+            contactId: recipient.contactId,
+            provider: batch.channel === "EMAIL" ? "resend" : "twilio",
+            direction: "OUTBOUND",
+            status: "QUEUED",
+            body: batch.body,
+            metadata: { recipientId: recipient.id },
+          },
+        }));
       await tx.outboundRecipient.update({
         where: { id: recipient.id },
         data: {
+          messageId: message.id,
           status: "SENDING",
           attemptedAt: new Date(),
           attempts: { increment: 1 },
@@ -454,6 +522,8 @@ export async function dispatchNext(adapter: DeliveryAdapter = deliveryAdapter) {
       return {
         input: {
           id: recipient.id,
+          smsFrom: batch.smsFrom ?? undefined,
+          replyToken: conversation.replyToken,
           channel: batch.channel,
           destination: recipient.destination,
           subject: batch.subject,
@@ -481,6 +551,20 @@ export async function dispatchNext(adapter: DeliveryAdapter = deliveryAdapter) {
         await tx.outboundRecipient.update({
           where: { id: current.id },
           data: { status: "ACCEPTED", providerId },
+        });
+      if (current.messageId)
+        await tx.message.update({
+          where: { id: current.messageId },
+          data: {
+            providerMessageId: providerId,
+            sentAt: new Date(),
+            status:
+              current.status === "FAILED"
+                ? "FAILED"
+                : ["DELIVERED", "COMPLETED"].includes(current.status)
+                  ? "DELIVERED"
+                  : "SENT",
+          },
         });
       if (!current.messageId) {
         const conversation = await tx.conversation.create({

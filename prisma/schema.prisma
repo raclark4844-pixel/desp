@@ -207,6 +207,10 @@ model User {
 
 model Campaign {
   outboundBatches OutboundBatch[]
+  smsSenderId String? @db.Uuid
+  smsSender SmsSender? @relation(fields: [smsSenderId], references: [id], onDelete: Restrict)
+  notificationTargets NotificationTarget[]
+  knowledge ReplyKnowledge[]
   id                  String         @id @default(uuid()) @db.Uuid
   customerId          String         @db.Uuid
   name                String
@@ -411,6 +415,13 @@ model Suppression {
 }
 
 model Conversation {
+  fromNumber String?
+  replyToken String @unique @default(uuid()) @db.Uuid
+  assignedTo String? @db.Uuid
+  needsReply Boolean @default(false)
+  campaignHold Boolean @default(false)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  replies InboxReply[]
   id         String              @id @default(uuid()) @db.Uuid
   campaignId String              @db.Uuid
   leadId     String              @db.Uuid
@@ -631,6 +642,7 @@ model LoginAttempt {
 }
 
 model OutboundBatch {
+  smsFrom String?
   id String @id @default(uuid()) @db.Uuid
   campaignId String @db.Uuid
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
@@ -681,4 +693,83 @@ model OutboundReservation {
   key String @id
   recipientId String @unique @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model SmsSender {
+  id String @id @default(uuid()) @db.Uuid
+  phone String @unique
+  label String
+  customerId String @db.Uuid
+  serviceSid String
+  active Boolean @default(true)
+  verifiedAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  campaigns Campaign[]
+}
+
+model InboxReceipt {
+  key String @id
+  channel String
+  sender String
+  destination String
+  body String
+  conversationId String? @db.Uuid
+  reason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model InboxReply {
+  id String @id @default(uuid()) @db.Uuid
+  conversationId String @db.Uuid
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  requestId String @unique @db.Uuid
+  body String
+  status String @default("DRAFT")
+  reason String?
+  createdBy String
+  providerId String? @unique
+  messageId String? @unique @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([conversationId, createdAt])
+}
+
+model NotificationTarget {
+  id String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  employeeId String @db.Uuid
+  channel String
+  destination String
+  enabled Boolean @default(true)
+  confirmedAt DateTime @db.Timestamptz(6)
+  jobs ReplyNotification[]
+  @@unique([campaignId, employeeId, channel])
+}
+
+model ReplyNotification {
+  id String @id @default(uuid()) @db.Uuid
+  targetId String @db.Uuid
+  target NotificationTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  receiptKey String
+  conversationId String @db.Uuid
+  status String @default("PENDING")
+  reason String?
+  providerId String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@unique([targetId, receiptKey])
+  @@index([status, createdAt])
+}
+
+model ReplyKnowledge {
+  id String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  question String
+  answer String
+  approvedBy String
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@index([campaignId, active])
 }

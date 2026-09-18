@@ -1,3 +1,4 @@
+import { receiveSms, receiveEmail } from "../inbox/receive";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "../db";
 import { queueLock, audit } from "./service";
@@ -145,38 +146,52 @@ export async function twilioWebhook(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   const action = url.searchParams.get("action");
   if (action === "inbound") {
-    const from = params.get("From") ?? "";
-    if (!/^\+1\d{10}$/.test(from)) return xml("");
-    await db.$transaction(async (tx) => {
-      await queueLock(tx);
-      const r = await tx.outboundRecipient.findFirst({
-        where: { destination: from, batch: { channel: "SMS" } },
-        include: { batch: { include: { campaign: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-      if (!r) return;
-      const stop =
-        params.get("OptOutType") === "STOP" ||
-        /\b(stop|unsubscribe|cancel|end|quit|revoke|opt[ -]?out|don.t (text|contact)|remove me)\b/i.test(
-          params.get("Body") ?? "",
-        );
-      // Any reply holds this prospect for a human; START never silently removes a suppression.
-      await suppress(
-        tx,
-        r.batch.campaign.customerId,
-        from,
-        stop ? "OPT_OUT" : "INTERNAL",
-      );
-      await audit(
-        tx,
-        r.batch.campaignId,
-        stop ? "sms_opt_out" : "reply_needs_review",
-        "twilio",
-        { recipientId: r.id },
-      );
-    });
+    await receiveSms(params);
     return xml("");
   }
+  const replyId = url.searchParams.get("reply");
+  if (replyId) {
+    if (!/^[a-f0-9-]{36}$/i.test(replyId))
+      return new Response("Not found", { status: 404 });
+    return db.$transaction(async (tx) => {
+      await queueLock(tx);
+      const reply = await tx.inboxReply.findUnique({
+        where: { id: replyId },
+        include: { conversation: { include: { contact: true } } },
+      });
+      const sid = params.get("MessageSid");
+      if (
+        !reply ||
+        reply.status === "DRAFT" ||
+        !sid ||
+        reply.conversation.channel !== "SMS" ||
+        params.get("To") !== reply.conversation.contact.normalizedValue ||
+        params.get("From") !== reply.conversation.fromNumber ||
+        (reply.providerId && reply.providerId !== sid)
+      )
+        return new Response("Mismatch", { status: 400 });
+      const state = params.get("MessageStatus");
+      const status =
+        state === "delivered"
+          ? "DELIVERED"
+          : ["failed", "undelivered"].includes(state ?? "")
+            ? "FAILED"
+            : null;
+      if (status && !["DELIVERED", "FAILED"].includes(reply.status)) {
+        await tx.inboxReply.update({
+          where: { id: reply.id },
+          data: { status, providerId: sid },
+        });
+        if (reply.messageId)
+          await tx.message.update({
+            where: { id: reply.messageId },
+            data: { status: status === "DELIVERED" ? "DELIVERED" : "FAILED" },
+          });
+      }
+      return xml("");
+    });
+  }
+
   const id = url.searchParams.get("id") ?? "";
   if (!/^[a-f0-9-]{36}$/i.test(id))
     return new Response("Not found", { status: 404 });
@@ -314,11 +329,48 @@ export async function resendWebhook(request: Request) {
   } catch {
     return new Response("Invalid event", { status: 400 });
   }
+  if (event.type === "email.received") {
+    await receiveEmail(event);
+    return new Response("OK");
+  }
   const type = event.type,
     providerId = event.data?.email_id;
   if (typeof providerId !== "string") return new Response("Ignored");
   return db.$transaction(async (tx) => {
     await queueLock(tx);
+    const reply = await tx.inboxReply.findUnique({
+      where: { providerId },
+      include: { conversation: { include: { campaign: true, contact: true } } },
+    });
+    if (reply && reply.conversation.channel === "EMAIL") {
+      const bad = [
+        "email.bounced",
+        "email.complained",
+        "email.failed",
+        "email.suppressed",
+      ].includes(type);
+      if (bad || type === "email.delivered") {
+        if (bad)
+          await suppress(
+            tx,
+            reply.conversation.campaign.customerId,
+            reply.conversation.contact.normalizedValue,
+            type === "email.complained" ? "COMPLAINT" : "INVALID_CONTACT",
+          );
+        if (reply.status !== "FAILED") {
+          await tx.inboxReply.update({
+            where: { id: reply.id },
+            data: { status: bad ? "FAILED" : "DELIVERED" },
+          });
+          if (reply.messageId)
+            await tx.message.update({
+              where: { id: reply.messageId },
+              data: { status: bad ? "FAILED" : "DELIVERED" },
+            });
+        }
+      }
+      return new Response("OK");
+    }
     const r = await tx.outboundRecipient.findUnique({
       where: { providerId },
       include: { batch: { include: { campaign: true } } },

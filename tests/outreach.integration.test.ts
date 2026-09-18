@@ -91,6 +91,19 @@ test(
         },
         include: { contacts: true },
       });
+      const sender = await db.smsSender.create({
+        data: {
+          phone: `+1202555${String(customers.length).padStart(4, "0")}`,
+          label: "Synthetic",
+          customerId: c.id,
+          serviceSid: "MGtest",
+          verifiedAt: new Date(),
+        },
+      });
+      await db.campaign.update({
+        where: { id: campaign.id },
+        data: { smsSenderId: sender.id },
+      });
       return { c, campaign, lead };
     }
     async function evidence(
@@ -444,9 +457,13 @@ test(
           data: { nextAttemptAt: null },
         });
       }
-      await suppressRecipient(pr.id,"synthetic-employee");
-    assert.ok(await db.suppression.findFirst({where:{leadId:f3.lead.id,reason:"OPT_OUT"}}));
-    assert.equal(rejected, 3);
+      await suppressRecipient(pr.id, "synthetic-employee");
+      assert.ok(
+        await db.suppression.findFirst({
+          where: { leadId: f3.lead.id, reason: "OPT_OUT" },
+        }),
+      );
+      assert.equal(rejected, 3);
       assert.equal(
         (
           await db.outboundRecipient.findFirstOrThrow({
@@ -473,6 +490,9 @@ test(
       });
       await db.outboundBatch.deleteMany({ where: { id: { in: ids } } });
       await db.customer.deleteMany({ where: { id: { in: customers } } });
+      await db.smsSender.deleteMany({
+        where: { customerId: { in: customers } },
+      });
       process.env = original;
       await db.$disconnect();
     }
