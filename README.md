@@ -167,3 +167,7 @@ Queued property-source jobs now have protected execution/worker endpoints, a Bat
 ## Step 5 — contact enrichment
 
 BatchData enrichment jobs now support protected queue, execution and retry endpoints, contact normalization, duplicate protection and restriction preservation. Execution defaults to disabled while setup continues. No outreach is implemented. See [Step 5 operations and deferred-testing guide](docs/step5-contact-enrichment.md).
+
+## Step 6 — lead-readiness review
+
+Protected evidence and evaluation APIs check consent, contact verification, campaign context, and suppressions without enabling outreach. See [Step 6 setup and limitations](docs/step6-compliance-review.md). External verification evidence is still required; paid BatchData testing remains deferred.
