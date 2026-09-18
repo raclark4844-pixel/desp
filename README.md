@@ -177,3 +177,7 @@ Open `/operations` for a protected, read-only view of customers, campaigns, jobs
 ## Step 8 — operator contact review
 
 Select a campaign in operations and open its masked contact review. Operators can run readiness checks and record documented evidence with explicit key authorization. Outreach stays disabled. See [review guide](docs/step8-operator-review.md) and [verification provider pricing and account requirements](docs/verification-provider-options.md).
+
+## RealPhoneValidation preparation
+
+The DNC Lookup adapter is implemented with simulated-response tests and remains disconnected from live execution pending FTC registration and authorization setup. See [connector preparation and remaining activation work](docs/rpv-connector-preparation.md).
