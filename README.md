@@ -1,4 +1,4 @@
-# APS Lead Engine — Steps 1–3
+# APS Lead Engine — Steps 1–5
 
 APS Lead Engine is the backend and campaign-intake foundation for AP Spartan's multi-industry lead-generation platform. The system is designed so one permanent customer/campaign/lead identity follows a prospect through sourcing, enrichment, compliance, outreach, qualification, delivery, and reporting.
 
@@ -163,3 +163,7 @@ Those layers plug into the `ProviderJob`, lead, property, contact, consent, supp
 ## Step 4 — source execution
 
 Queued property-source jobs now have protected execution/worker endpoints, a BatchData adapter, manual PropWire ingestion, lease recovery, bounded retries, audit events and transactional deduplication. No outreach is implemented. See [Step 4 operations and API guide](docs/step4-source-execution.md) for secrets, status transitions, import format, limits and deployment steps.
+
+## Step 5 — contact enrichment
+
+BatchData enrichment jobs now support protected queue, execution and retry endpoints, contact normalization, duplicate protection and restriction preservation. Execution defaults to disabled while setup continues. No outreach is implemented. See [Step 5 operations and deferred-testing guide](docs/step5-contact-enrichment.md).

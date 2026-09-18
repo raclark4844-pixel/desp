@@ -1,6 +1,6 @@
 {
   "name": "aps-lead-engine",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -17,8 +17,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "typecheck": "prisma generate && tsc --noEmit",
-    "test": "tsx --test tests/source.unit.test.ts",
-    "test:integration": "tsx --test tests/source.integration.test.ts"
+    "test": "tsx --test tests/*.unit.test.ts",
+    "test:integration": "tsx --test tests/*.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

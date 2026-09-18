@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAuthorizedInternalRequest } from "@/lib/internal-auth";
 import { executeSourceJob } from "@/lib/lead-sources/execution";
+import { runEnrichmentWorker } from "@/lib/enrichment/service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,8 +36,11 @@ async function run() {
       orderBy: { createdAt: "asc" },
       select: { id: true },
     });
+    const result = job
+      ? await executeSourceJob(job.id)
+      : (await runEnrichmentWorker()).job;
     return NextResponse.json(
-      { ok: true, result: job ? await executeSourceJob(job.id) : null },
+      { ok: true, result },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch {
