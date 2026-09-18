@@ -169,6 +169,8 @@ model Customer {
   slug        String         @unique
   status      CustomerStatus @default(ACTIVE)
   websiteUrl  String?
+  contactName String?
+  contactEmail String?
   timezone    String         @default("America/New_York")
   externalCrm String?
   createdAt   DateTime       @default(now()) @db.Timestamptz(6)

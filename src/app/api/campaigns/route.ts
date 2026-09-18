@@ -1,6 +1,10 @@
+import { isAuthorizedInternalRequest } from "@/lib/internal-auth";
 import { NextResponse } from "next/server";
 import { campaignIntakeSchema } from "@/lib/campaign-schema";
-import { createCampaignIntake } from "@/lib/campaign-service";
+import {
+  createCampaignIntake,
+  CustomerIntakeError,
+} from "@/lib/campaign-service";
 
 export const runtime = "nodejs";
 
@@ -30,18 +34,28 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await createCampaignIntake(parsed.data);
+    const result = await createCampaignIntake(
+      parsed.data,
+      isAuthorizedInternalRequest(request),
+    );
 
     return NextResponse.json(
       {
         ok: true,
         ...result,
-        message: "Campaign draft created. No lead sourcing or outreach has started.",
+        message:
+          "Campaign draft created. No lead sourcing or outreach has started.",
       },
       { status: 201 },
     );
   } catch (error) {
-    console.error("campaign intake failed", error);
+    if (error instanceof CustomerIntakeError) {
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: error.status },
+      );
+    }
+    console.error("campaign intake failed");
     return NextResponse.json(
       { ok: false, error: "Unable to create the campaign draft." },
       { status: 500 },

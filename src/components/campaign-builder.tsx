@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerFields } from "@/components/customer-fields";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   industryOptions,
@@ -44,7 +45,9 @@ function optionalNumber(form: FormData, name: string) {
 
 export function CampaignBuilder() {
   const [industry, setIndustry] = useState<IndustryKey>("roofing");
-  const [territories, setTerritories] = useState<TerritoryDraft[]>([emptyTerritory()]);
+  const [territories, setTerritories] = useState<TerritoryDraft[]>([
+    emptyTerritory(),
+  ]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ApiResponse | null>(null);
 
@@ -70,11 +73,13 @@ export function CampaignBuilder() {
     setSubmitting(true);
     setResult(null);
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const ownerOccupiedRaw = stringValue(form, "ownerOccupied");
 
     const payload = {
       customer: {
+        id: stringValue(form, "customerId") || undefined,
         name: stringValue(form, "companyName"),
         websiteUrl: stringValue(form, "websiteUrl"),
         timezone: stringValue(form, "timezone") || "America/New_York",
@@ -103,7 +108,11 @@ export function CampaignBuilder() {
       })),
       targeting: {
         ownerOccupied:
-          ownerOccupiedRaw === "YES" ? true : ownerOccupiedRaw === "NO" ? false : null,
+          ownerOccupiedRaw === "YES"
+            ? true
+            : ownerOccupiedRaw === "NO"
+              ? false
+              : null,
         minYearBuilt: optionalNumber(form, "minYearBuilt"),
         maxYearBuilt: optionalNumber(form, "maxYearBuilt"),
         minEstimatedValue: optionalNumber(form, "minEstimatedValue"),
@@ -117,7 +126,17 @@ export function CampaignBuilder() {
     try {
       const response = await fetch("/api/campaigns", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(form.get("customerId")
+            ? {
+                "x-aps-internal-key": stringValue(
+                  form,
+                  "customerAuthorization",
+                ),
+              }
+            : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -125,7 +144,7 @@ export function CampaignBuilder() {
       setResult(responseBody);
 
       if (response.ok) {
-        event.currentTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+        formElement.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     } catch {
       setResult({
@@ -133,6 +152,8 @@ export function CampaignBuilder() {
         error: "The campaign service could not be reached. Please try again.",
       });
     } finally {
+      const keyInput = formElement.elements.namedItem("customerAuthorization");
+      if (keyInput instanceof HTMLInputElement) keyInput.value = "";
       setSubmitting(false);
     }
   }
@@ -147,8 +168,13 @@ export function CampaignBuilder() {
       </div>
 
       {result ? (
-        <div className={result.ok ? "notice success" : "notice error"} role="status">
-          <strong>{result.ok ? "Campaign draft created" : "Campaign not created"}</strong>
+        <div
+          className={result.ok ? "notice success" : "notice error"}
+          role="status"
+        >
+          <strong>
+            {result.ok ? "Campaign draft created" : "Campaign not created"}
+          </strong>
           <p>{result.message ?? result.error}</p>
           {result.campaignId ? (
             <dl className="result-grid">
@@ -173,58 +199,38 @@ export function CampaignBuilder() {
         <div className="section-heading">
           <p className="step-label">CUSTOMER</p>
           <h2>Who is this campaign for?</h2>
-          <p>This creates or reuses the APS customer record and future portal administrator.</p>
+          <p>Saved customers keep one customer ID across their campaigns.</p>
         </div>
-        <div className="field-grid two-column">
-          <label>
-            Company name
-            <input name="companyName" required minLength={2} autoComplete="organization" />
-          </label>
-          <label>
-            Company website
-            <input name="websiteUrl" type="url" placeholder="https://example.com" autoComplete="url" />
-          </label>
-          <label>
-            Primary contact
-            <input name="contactName" required minLength={2} autoComplete="name" />
-          </label>
-          <label>
-            Contact email
-            <input name="contactEmail" type="email" required autoComplete="email" />
-          </label>
-          <label>
-            Time zone
-            <select name="timezone" defaultValue="America/New_York">
-              <option value="America/New_York">Eastern</option>
-              <option value="America/Chicago">Central</option>
-              <option value="America/Denver">Mountain</option>
-              <option value="America/Los_Angeles">Pacific</option>
-            </select>
-          </label>
-          <label className="honeypot" aria-hidden="true">
-            Company fax
-            <input name="companyFax" tabIndex={-1} autoComplete="off" />
-          </label>
-        </div>
+        <CustomerFields />
       </section>
 
       <section className="form-section">
         <div className="section-heading">
           <p className="step-label">CAMPAIGN</p>
           <h2>What should APS build?</h2>
-          <p>The campaign stays in draft until an authorized APS action activates it.</p>
+          <p>
+            The campaign stays in draft until an authorized APS action activates
+            it.
+          </p>
         </div>
         <div className="field-grid two-column">
           <label>
             Campaign name
-            <input name="campaignName" required minLength={3} placeholder="Lake County Fall Roofing" />
+            <input
+              name="campaignName"
+              required
+              minLength={3}
+              placeholder="Lake County Fall Roofing"
+            />
           </label>
           <label>
             Industry
             <select
               name="industry"
               value={industry}
-              onChange={(event) => setIndustry(event.target.value as IndustryKey)}
+              onChange={(event) =>
+                setIndustry(event.target.value as IndustryKey)
+              }
             >
               {industryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -243,7 +249,14 @@ export function CampaignBuilder() {
           </label>
           <label>
             Desired lead count
-            <input name="desiredLeadCount" type="number" min={25} max={100000} defaultValue={500} required />
+            <input
+              name="desiredLeadCount"
+              type="number"
+              min={25}
+              max={100000}
+              defaultValue={500}
+              required
+            />
           </label>
           <label>
             Service level
@@ -268,11 +281,20 @@ export function CampaignBuilder() {
         <fieldset>
           <legend>Requested communication channels</legend>
           <div className="check-row">
-            <label className="check-card"><input type="checkbox" name="sms" /> SMS</label>
-            <label className="check-card"><input type="checkbox" name="email" /> Email</label>
-            <label className="check-card"><input type="checkbox" name="calling" /> Calling</label>
+            <label className="check-card">
+              <input type="checkbox" name="sms" /> SMS
+            </label>
+            <label className="check-card">
+              <input type="checkbox" name="email" /> Email
+            </label>
+            <label className="check-card">
+              <input type="checkbox" name="calling" /> Calling
+            </label>
           </div>
-          <p className="microcopy">These are preferences only. Step 2 does not connect or launch any messaging provider.</p>
+          <p className="microcopy">
+            These are preferences only. Step 2 does not connect or launch any
+            messaging provider.
+          </p>
         </fieldset>
       </section>
 
@@ -281,9 +303,18 @@ export function CampaignBuilder() {
           <div>
             <p className="step-label">TERRITORY</p>
             <h2>Where should leads come from?</h2>
-            <p>Add counties, ZIP codes, cities, or states. Multiple territories stay attached to the same campaign ID.</p>
+            <p>
+              Add counties, ZIP codes, cities, or states. Multiple territories
+              stay attached to the same campaign ID.
+            </p>
           </div>
-          <button type="button" className="secondary-button" onClick={() => setTerritories((current) => [...current, emptyTerritory()])}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              setTerritories((current) => [...current, emptyTerritory()])
+            }
+          >
             + Add territory
           </button>
         </div>
@@ -295,7 +326,11 @@ export function CampaignBuilder() {
                 Type
                 <select
                   value={territory.type}
-                  onChange={(event) => updateTerritory(index, { type: event.target.value as TerritoryDraft["type"] })}
+                  onChange={(event) =>
+                    updateTerritory(index, {
+                      type: event.target.value as TerritoryDraft["type"],
+                    })
+                  }
                 >
                   <option value="COUNTY">County</option>
                   <option value="ZIP">ZIP code</option>
@@ -308,8 +343,16 @@ export function CampaignBuilder() {
                 <input
                   value={territory.value}
                   required
-                  placeholder={territory.type === "ZIP" ? "44060" : territory.type === "COUNTY" ? "Lake County" : "Mentor"}
-                  onChange={(event) => updateTerritory(index, { value: event.target.value })}
+                  placeholder={
+                    territory.type === "ZIP"
+                      ? "44060"
+                      : territory.type === "COUNTY"
+                        ? "Lake County"
+                        : "Mentor"
+                  }
+                  onChange={(event) =>
+                    updateTerritory(index, { value: event.target.value })
+                  }
                 />
               </label>
               <label>
@@ -318,10 +361,19 @@ export function CampaignBuilder() {
                   value={territory.state}
                   maxLength={2}
                   placeholder="OH"
-                  onChange={(event) => updateTerritory(index, { state: event.target.value.toUpperCase() })}
+                  onChange={(event) =>
+                    updateTerritory(index, {
+                      state: event.target.value.toUpperCase(),
+                    })
+                  }
                 />
               </label>
-              <button type="button" className="remove-button" onClick={() => removeTerritory(index)} disabled={territories.length === 1}>
+              <button
+                type="button"
+                className="remove-button"
+                onClick={() => removeTerritory(index)}
+                disabled={territories.length === 1}
+              >
                 Remove
               </button>
             </div>
@@ -339,7 +391,9 @@ export function CampaignBuilder() {
         <div className="profile-card">
           <strong>Recommended signals for this industry</strong>
           <ul>
-            {profile.recommendedCriteria.map((criterion) => <li key={criterion}>{criterion}</li>)}
+            {profile.recommendedCriteria.map((criterion) => (
+              <li key={criterion}>{criterion}</li>
+            ))}
           </ul>
         </div>
 
@@ -354,7 +408,10 @@ export function CampaignBuilder() {
           </label>
           <label>
             Lead type / project focus
-            <input name="leadType" placeholder="Roof replacement, storm inspection, repair..." />
+            <input
+              name="leadType"
+              placeholder="Roof replacement, storm inspection, repair..."
+            />
           </label>
           <label>
             Minimum year built
@@ -376,7 +433,12 @@ export function CampaignBuilder() {
 
         <label>
           Additional targeting requirements
-          <textarea name="customCriteria" rows={5} maxLength={2000} placeholder="Add lawful property, geography, business, or service-relevance criteria..." />
+          <textarea
+            name="customCriteria"
+            rows={5}
+            maxLength={2000}
+            placeholder="Add lawful property, geography, business, or service-relevance criteria..."
+          />
         </label>
         <p className="compliance-note">{prohibitedTargetingNotice}</p>
       </section>
@@ -384,7 +446,10 @@ export function CampaignBuilder() {
       <div className="submit-bar">
         <div>
           <strong>Draft only</strong>
-          <p>Creating this campaign will not purchase data, send messages, or contact prospects.</p>
+          <p>
+            Creating this campaign will not purchase data, send messages, or
+            contact prospects.
+          </p>
         </div>
         <button className="primary-button" type="submit" disabled={submitting}>
           {submitting ? "Creating campaign…" : "Create campaign draft"}

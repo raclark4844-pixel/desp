@@ -21,8 +21,8 @@ export default function NewCampaignPage() {
         <div className="status-card" aria-label="Campaign workflow status">
           <span className="status-dot" />
           <div>
-            <strong>Step 2 active</strong>
-            <p>Campaign Builder + orchestration foundation</p>
+            <strong>Draft only</strong>
+            <p>Customer lookup + campaign builder</p>
           </div>
         </div>
       </section>

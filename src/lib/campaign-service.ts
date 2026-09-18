@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type { CampaignIntake } from "@/lib/campaign-schema";
-import { getIndustryProfile, prohibitedTargetingNotice } from "@/lib/industry-profiles";
+import {
+  getIndustryProfile,
+  prohibitedTargetingNotice,
+} from "@/lib/industry-profiles";
 
 function slugify(value: string) {
   return value
@@ -15,56 +19,68 @@ function asDate(value?: string) {
   return value ? new Date(`${value}T12:00:00.000Z`) : null;
 }
 
-export async function createCampaignIntake(input: CampaignIntake) {
+export class CustomerIntakeError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export async function createCampaignIntake(
+  input: CampaignIntake,
+  allowExistingCustomer = false,
+) {
+  if (input.customer.id && !allowExistingCustomer) {
+    throw new CustomerIntakeError(
+      401,
+      "Operator authorization is required to use a saved customer.",
+    );
+  }
   const profile = getIndustryProfile(input.campaign.industry);
   const residential = input.campaign.propertyUse !== "COMMERCIAL";
   const commercial = input.campaign.propertyUse !== "RESIDENTIAL";
 
   return db.$transaction(async (tx) => {
     let customer;
-
     if (input.customer.id) {
-      customer = await tx.customer.update({
+      await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${input.customer.id}::uuid FOR SHARE`;
+      customer = await tx.customer.findUnique({
         where: { id: input.customer.id },
+      });
+      if (!customer)
+        throw new CustomerIntakeError(
+          404,
+          "Saved customer was not found. Search again.",
+        );
+      if (customer.status !== "ACTIVE")
+        throw new CustomerIntakeError(409, "This customer is not active.");
+      if (
+        customer.name !== input.customer.name ||
+        (customer.websiteUrl ?? "") !== (input.customer.websiteUrl ?? "") ||
+        customer.timezone !== input.customer.timezone ||
+        customer.contactName !== input.customer.contactName ||
+        customer.contactEmail?.toLowerCase() !==
+          input.customer.contactEmail.toLowerCase()
+      ) {
+        throw new CustomerIntakeError(
+          409,
+          "Saved customer details changed or are incomplete. Search again before saving.",
+        );
+      }
+    } else {
+      customer = await tx.customer.create({
         data: {
           name: input.customer.name,
-          websiteUrl: input.customer.websiteUrl ?? null,
+          slug: `${slugify(input.customer.name) || "aps-customer"}-${randomUUID()}`,
+          websiteUrl: input.customer.websiteUrl || null,
           timezone: input.customer.timezone,
-        },
-      });
-    } else {
-      const baseSlug = slugify(input.customer.name) || "aps-customer";
-      customer = await tx.customer.upsert({
-        where: { slug: baseSlug },
-        create: {
-          name: input.customer.name,
-          slug: baseSlug,
-          websiteUrl: input.customer.websiteUrl ?? null,
-          timezone: input.customer.timezone,
-        },
-        update: {
-          name: input.customer.name,
-          websiteUrl: input.customer.websiteUrl ?? null,
-          timezone: input.customer.timezone,
+          contactName: input.customer.contactName,
+          contactEmail: input.customer.contactEmail.toLowerCase(),
         },
       });
     }
-
-    await tx.user.upsert({
-      where: { email: input.customer.contactEmail.toLowerCase() },
-      create: {
-        customerId: customer.id,
-        email: input.customer.contactEmail.toLowerCase(),
-        name: input.customer.contactName,
-        role: "CUSTOMER_ADMIN",
-      },
-      update: {
-        customerId: customer.id,
-        name: input.customer.contactName,
-        role: "CUSTOMER_ADMIN",
-        isActive: true,
-      },
-    });
 
     const campaign = await tx.campaign.create({
       data: {
@@ -123,10 +139,11 @@ export async function createCampaignIntake(input: CampaignIntake) {
         customerId: customer.id,
         campaignId: campaign.id,
         eventType: "campaign.created",
-        actorType: "CUSTOMER_INTAKE",
+        actorType: input.customer.id ? "APS_INTERNAL" : "CUSTOMER_INTAKE",
         actorId: input.customer.contactEmail.toLowerCase(),
         payload: {
           source: "campaign-builder",
+          customerSelection: input.customer.id ? "EXISTING" : "NEW",
           status: "DRAFT",
           desiredLeadCount: input.campaign.desiredLeadCount,
           industry: input.campaign.industry,

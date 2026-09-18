@@ -225,3 +225,13 @@ legend { margin-bottom: 10px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+.customer-search { position: relative; }
+.customer-search > label { display: block; margin-bottom: 8px; }
+.customer-search > input { width: 100%; }
+.customer-matches { position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 4px; list-style: none; max-height: 320px; overflow-y: auto; background: #fff; color: #17243b; border: 1px solid #a9b6cb; border-radius: 8px; box-shadow: 0 8px 24px #17243b20; }
+.customer-matches li { padding: 10px; cursor: pointer; overflow-wrap: anywhere; }
+.customer-matches li[aria-selected="true"] { background: #e8f0ff; outline: 2px solid #3969bd; outline-offset: -2px; }
+.customer-matches li[aria-disabled="true"] { color: #637086; }
+.customer-matches span, .customer-matches small { display: block; margin-top: 3px; }
+input[readonly] { background: #f1f4f8; color: #344259; }
