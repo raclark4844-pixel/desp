@@ -13,3 +13,5 @@ export const customerUpdateSchema = z.object({
   contactName: text(120), contactEmail: text(320).refine(v => !v || z.string().email().safeParse(v).success, "Enter a valid email."), timezone: text(80).min(3),
   profile: z.object({ phone: text(60), street: text(240), city: text(120), state: text(100), postalCode: text(30), hours: text(500), services: text(2000), serviceAreas: text(2000), notes: text(6000) }).strict(),
 }).strict();
+
+export const customerCreateSchema = customerUpdateSchema.omit({ updatedAt: true }).extend({ requestId: z.string().uuid() });
