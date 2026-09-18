@@ -1,3 +1,4 @@
+import { requireAiSession } from "./ai-session";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db";
@@ -8,7 +9,12 @@ export const redact = (text: string) =>
   text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
     .replace(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}/g, "[phone]");
-export async function suggestReply(raw: unknown, actor: string) {
+export async function suggestReply(
+  raw: unknown,
+  actor: string,
+  sessionHash = "",
+) {
+  const consent = await requireAiSession(sessionHash, actor);
   const { id } = z.object({ id: z.string().uuid() }).strict().parse(raw);
   if (
     process.env.INBOX_AI_ENABLED !== "true" ||
@@ -45,6 +51,7 @@ export async function suggestReply(raw: unknown, actor: string) {
     });
     return { c, knowledge };
   });
+  await requireAiSession(sessionHash, actor, consent.aiVersion);
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -70,12 +77,10 @@ export async function suggestReply(raw: unknown, actor: string) {
               question: redact(k.question),
               answer: redact(k.answer),
             })),
-            untrustedConversation: context.c.messages
-              .reverse()
-              .map((m) => ({
-                direction: m.direction,
-                text: redact(m.body).slice(0, 3000),
-              })),
+            untrustedConversation: context.c.messages.reverse().map((m) => ({
+              direction: m.direction,
+              text: redact(m.body).slice(0, 3000),
+            })),
           }),
         },
       ],
@@ -93,6 +98,7 @@ export async function suggestReply(raw: unknown, actor: string) {
     body.length > (context.c.channel === "SMS" ? 600 : 4000)
   )
     fail("AI draft was missing or too long. Write a reply manually.");
+  await requireAiSession(sessionHash, actor, consent.aiVersion);
   if (body.startsWith("HUMAN REVIEW:")) return { note: body };
   const idDraft = await saveReply(
     { conversationId: id, requestId: randomUUID(), body },

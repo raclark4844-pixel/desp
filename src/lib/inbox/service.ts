@@ -1,3 +1,4 @@
+import { handoffPreview } from "./handoff";
 import { z } from "zod";
 import { db } from "../db";
 import { queueLock, audit } from "../outreach/service";
@@ -36,7 +37,13 @@ export async function overview(campaignId?: string, cursor?: string) {
     db.campaign.findMany({
       orderBy: { createdAt: "desc" },
       take: 200,
-      select: { id: true, name: true, customerId: true, smsSenderId: true },
+      select: {
+        id: true,
+        name: true,
+        customerId: true,
+        smsSenderId: true,
+        primaryAlertTargetId: true,
+      },
     }),
     db.employee.findMany({
       where: { isActive: true },
@@ -79,7 +86,7 @@ export async function overview(campaignId?: string, cursor?: string) {
 }
 export async function detail(id: string) {
   z.string().uuid().parse(id);
-  return db.conversation.findUniqueOrThrow({
+  const conversation = await db.conversation.findUniqueOrThrow({
     where: { id },
     include: {
       campaign: { include: { customer: true } },
@@ -89,7 +96,17 @@ export async function detail(id: string) {
       replies: { orderBy: { createdAt: "desc" }, take: 50 },
     },
   });
+  return {
+    ...conversation,
+    handoff: await handoffPreview(id),
+    aiObservations: await db.aiObservation.findMany({
+      where: { conversationId: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  };
 }
+
 export async function updateConversation(raw: unknown, actor: string) {
   const input = z
     .object({

@@ -5,6 +5,7 @@ type Campaign = {
   name: string;
   customerId: string;
   smsSenderId: string | null;
+  primaryAlertTargetId: string | null;
 };
 type Employee = { id: string; name: string; email: string };
 type Conversation = {
@@ -30,6 +31,25 @@ type Reply = {
   reason: string | null;
 };
 type Detail = Conversation & {
+  handoff: {
+    target: { id: string; name: string; phone: string } | null;
+    sourceMessageId: string | null;
+    suggestedBody: string;
+    alerts: {
+      id: string;
+      status: string;
+      body: string | null;
+      createdAt: string;
+    }[];
+  };
+  aiObservations: {
+    id: string;
+    status: string;
+    summary: string | null;
+    question: string | null;
+    answer: string | null;
+    knowledgeStatus: string;
+  }[];
   messages: {
     id: string;
     body: string;
@@ -166,7 +186,9 @@ export default function Inbox({ admin }: { admin: boolean }) {
           ? result.note
           : action === "SEND"
             ? `Reply status: ${result}`
-            : "Saved.",
+            : action === "HANDOFF"
+              ? `Employee alert status: ${result?.status ?? "PENDING"}. Pending means queued, not sent.`
+              : "Saved.",
       );
       return true;
     } catch (e) {
@@ -351,6 +373,121 @@ export default function Inbox({ admin }: { admin: boolean }) {
                     <p>Showing the latest 200 messages.</p>
                   )}
                 </div>
+                <details className="inbox-draft">
+                  <summary>
+                    Person wants to proceed — notify primary employee
+                  </summary>
+                  {conversation.handoff.target &&
+                  conversation.handoff.sourceMessageId ? (
+                    <form
+                      key={
+                        conversation.id +
+                        conversation.handoff.target.id +
+                        conversation.handoff.target.phone +
+                        conversation.handoff.sourceMessageId
+                      }
+                      onSubmit={(e) => {
+                        const f = form(e);
+                        void change("HANDOFF", {
+                          conversationId: conversation.id,
+                          targetId: conversation.handoff.target!.id,
+                          expectedPhone: conversation.handoff.target!.phone,
+                          sourceMessageId: conversation.handoff.sourceMessageId,
+                          body: f.body,
+                          confirm: f.confirm === "on",
+                        });
+                      }}
+                    >
+                      <p>
+                        Text to{" "}
+                        <strong>{conversation.handoff.target.name}</strong> ·{" "}
+                        {conversation.handoff.target.phone}
+                      </p>
+                      <label>
+                        Employee notification
+                        <textarea
+                          name="body"
+                          defaultValue={conversation.handoff.suggestedBody}
+                          maxLength={500}
+                          rows={3}
+                          required
+                        />
+                      </label>
+                      <p>
+                        A secure link to this conversation will be added. This
+                        alerts your teammate, not the prospect.
+                      </p>
+                      <label className="inbox-check">
+                        <input type="checkbox" name="confirm" required />I
+                        confirmed the person wants to proceed and reviewed this
+                        text and recipient.
+                      </label>
+                      <button disabled={busy}>
+                        {data.notificationsEnabled
+                          ? "Queue text to primary employee"
+                          : "Save handoff — texting alerts are off"}
+                      </button>
+                    </form>
+                  ) : (
+                    <p>
+                      An administrator must select a primary employee with an
+                      enabled mobile alert destination in Campaign settings. An
+                      incoming response is also required.
+                    </p>
+                  )}
+                  {conversation.handoff.alerts.map((a) => (
+                    <p key={a.id}>
+                      Employee handoff: {a.status} ·{" "}
+                      {new Date(a.createdAt).toLocaleString()}
+                    </p>
+                  ))}
+                </details>
+                {!!conversation.aiObservations.length && (
+                  <details className="inbox-draft">
+                    <summary>
+                      AI monitoring notes and learning suggestions
+                    </summary>
+                    {conversation.aiObservations.map((o) => (
+                      <article key={o.id}>
+                        <p>
+                          <strong>{o.status}</strong> ·{" "}
+                          {o.summary || "Review in progress"}
+                        </p>
+                        {o.question && o.answer && (
+                          <>
+                            <strong>{o.question}</strong>
+                            <p>{o.answer}</p>
+                            <p>
+                              {o.knowledgeStatus === "APPROVED"
+                                ? "Approved for future drafts"
+                                : "Unapproved AI suggestion — check facts and remove personal details before reuse."}
+                            </p>
+                            {admin && o.knowledgeStatus !== "APPROVED" && (
+                              <form
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  void change("APPROVE_OBSERVATION", {
+                                    id: o.id,
+                                    confirm: true,
+                                  });
+                                }}
+                              >
+                                <label className="inbox-check">
+                                  <input type="checkbox" required />I verified
+                                  this reusable answer is accurate and contains
+                                  no personal details.
+                                </label>
+                                <button disabled={busy}>
+                                  Approve for future drafts
+                                </button>
+                              </form>
+                            )}
+                          </>
+                        )}
+                      </article>
+                    ))}
+                  </details>
+                )}
                 {["SMS", "EMAIL"].includes(conversation.channel) && (
                   <>
                     <label>
@@ -529,6 +666,50 @@ export default function Inbox({ admin }: { admin: boolean }) {
                   </form>
                 </details>
               )}
+              <h3>Campaign primary employee</h3>
+              <p>
+                Choose the AP Spartan teammate who should receive a text when a
+                contact wants to proceed. Add their mobile alert destination
+                below first.
+              </p>
+              <form
+                key={campaign + currentCampaign.primaryAlertTargetId}
+                onSubmit={(e) => {
+                  const f = form(e);
+                  void change("PRIMARY_CONTACT", {
+                    campaignId: campaign,
+                    targetId: f.targetId || null,
+                  });
+                }}
+              >
+                <label>
+                  Primary employee
+                  <select
+                    name="targetId"
+                    disabled={!admin}
+                    defaultValue={currentCampaign.primaryAlertTargetId || ""}
+                  >
+                    <option value="">Choose employee</option>
+                    {data.targets
+                      .filter(
+                        (t) =>
+                          t.campaignId === campaign &&
+                          t.channel === "SMS" &&
+                          t.enabled,
+                      )
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {
+                            data.employees.find((e) => e.id === t.employeeId)
+                              ?.name
+                          }{" "}
+                          · {t.destination}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <button disabled={!admin || busy}>Save primary employee</button>
+              </form>
               <h3>Employee reply alerts</h3>
               <p>
                 Notify multiple employees by email, text, or both. Alerts

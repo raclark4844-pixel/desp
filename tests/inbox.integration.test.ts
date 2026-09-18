@@ -12,6 +12,7 @@ import {
   saveKnowledge,
   updateConversation,
 } from "../src/lib/inbox/service";
+import { setAiSession } from "../src/lib/inbox/ai-session";
 import { suggestReply } from "../src/lib/inbox/ai";
 import { dispatchNotification } from "../src/lib/inbox/notifications";
 import { twilioWebhook } from "../src/lib/outreach/webhooks";
@@ -508,7 +509,12 @@ test(
           ],
         });
       };
-      const ai = await suggestReply({ id: c.id }, employee.id);
+      await setAiSession(session.tokenHash, employee.id, true);
+      const ai = await suggestReply(
+        { id: c.id },
+        employee.id,
+        session.tokenHash,
+      );
       assert.ok("draftId" in ai);
       assert.equal(sent.length, 2);
       const stopSid = "SM" + "d".repeat(32);

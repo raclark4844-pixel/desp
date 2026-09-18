@@ -206,6 +206,7 @@ model User {
 }
 
 model Campaign {
+  primaryAlertTargetId String? @db.Uuid
   outboundBatches OutboundBatch[]
   smsSenderId String? @db.Uuid
   smsSender SmsSender? @relation(fields: [smsSenderId], references: [id], onDelete: Restrict)
@@ -627,6 +628,10 @@ model Employee {
 }
 
 model EmployeeSession {
+  aiEnabled Boolean @default(false)
+  aiDecidedAt DateTime? @db.Timestamptz(6)
+  aiEnabledAt DateTime? @db.Timestamptz(6)
+  aiVersion Int @default(0)
   tokenHash String @id
   employeeId String @db.Uuid
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -748,6 +753,9 @@ model NotificationTarget {
 }
 
 model ReplyNotification {
+  destinationSnapshot String?
+  kind String @default("REPLY")
+  body String?
   id String @id @default(uuid()) @db.Uuid
   targetId String @db.Uuid
   target NotificationTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
@@ -772,4 +780,19 @@ model ReplyKnowledge {
   active Boolean @default(true)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   @@index([campaignId, active])
+}
+
+model AiObservation {
+  id String @id @default(uuid()) @db.Uuid
+  messageId String @unique @db.Uuid
+  conversationId String @db.Uuid
+  employeeId String @db.Uuid
+  status String @default("RUNNING")
+  summary String?
+  question String?
+  answer String?
+  knowledgeStatus String @default("PENDING")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([conversationId, createdAt])
 }

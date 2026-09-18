@@ -1,3 +1,7 @@
+import { after } from "next/server";
+import { dispatchNotification } from "@/lib/inbox/notifications";
+import { setPrimaryContact, queueHandoff } from "@/lib/inbox/handoff";
+import { approveObservation } from "@/lib/inbox/monitor";
 import { NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 import { employeeFromRequest } from "@/lib/employee/auth";
@@ -14,6 +18,7 @@ import {
   saveKnowledge,
 } from "@/lib/inbox/service";
 import { assignSender, registerSender } from "@/lib/inbox/senders";
+import { sessionHash } from "@/lib/inbox/ai-session";
 import { suggestReply } from "@/lib/inbox/ai";
 import { db } from "@/lib/db";
 import { audit, queueLock } from "@/lib/outreach/service";
@@ -47,6 +52,9 @@ async function route(request: Request) {
       const { action, payload } = z
         .object({
           action: z.enum([
+            "PRIMARY_CONTACT",
+            "HANDOFF",
+            "APPROVE_OBSERVATION",
             "ASSIGN",
             "DRAFT",
             "SEND",
@@ -63,6 +71,8 @@ async function route(request: Request) {
         .parse(await boundedJson(request));
       if (
         [
+          "PRIMARY_CONTACT",
+          "APPROVE_OBSERVATION",
           "TARGET",
           "KNOWLEDGE",
           "RETIRE_KNOWLEDGE",
@@ -76,6 +86,18 @@ async function route(request: Request) {
           { status: 403, headers },
         );
       switch (action) {
+        case "PRIMARY_CONTACT":
+          result = await setPrimaryContact(payload, employee.id);
+          break;
+        case "HANDOFF":
+          result = await queueHandoff(payload, employee.id);
+          after(async () => {
+            await dispatchNotification();
+          });
+          break;
+        case "APPROVE_OBSERVATION":
+          result = await approveObservation(payload, employee.id);
+          break;
         case "ASSIGN":
           result = await updateConversation(payload, employee.id);
           break;
@@ -86,7 +108,11 @@ async function route(request: Request) {
           result = await sendReply(payload, employee.id);
           break;
         case "AI":
-          result = await suggestReply(payload, employee.id);
+          result = await suggestReply(
+            payload,
+            employee.id,
+            sessionHash(request),
+          );
           break;
         case "TARGET":
           result = await saveTarget(payload, employee.id);

@@ -65,6 +65,24 @@ export async function dispatchNotification() {
       });
       return null;
     }
+    if (job.kind === "HANDOFF") {
+      const campaign = await tx.campaign.findUnique({
+        where: { id: job.target.campaignId },
+      });
+      if (
+        job.destinationSnapshot !== job.target.destination ||
+        campaign?.primaryAlertTargetId !== job.targetId
+      ) {
+        await tx.replyNotification.update({
+          where: { id: job.id },
+          data: {
+            status: "CANCELLED",
+            reason: "Primary contact changed after review.",
+          },
+        });
+        return null;
+      }
+    }
     const email = job.target.channel === "EMAIL";
     const ready = email
       ? process.env.INBOX_EMAIL_NOTIFICATIONS_VERIFIED === "true" &&
@@ -96,7 +114,10 @@ export async function dispatchNotification() {
     const base = process.env.OUTREACH_PUBLIC_URL;
     if (!base || !/^https:\/\/[^/]+$/.test(base))
       throw new Error("Public URL missing");
-    const text = `AP Spartan: A campaign contact replied. Sign in to review: ${base}/inbox?conversation=${work.conversationId}`;
+    const text =
+      work.kind === "HANDOFF"
+        ? `AP Spartan employee handoff: ${work.body ?? "A campaign contact wants to proceed."}\nReview: ${base}/inbox?conversation=${work.conversationId}`
+        : `AP Spartan: A campaign contact replied. Sign in to review: ${base}/inbox?conversation=${work.conversationId}`;
     const email = work.target.channel === "EMAIL";
     const response = email
       ? await fetch("https://api.resend.com/emails", {
