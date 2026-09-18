@@ -15,6 +15,9 @@ export default async function OperationsPage() {
           <span>Signed in as {employee.name}</span>
           <Link href="/inbox">Campaign inbox</Link>
           <Link href="/customers">Customers</Link>
+          <Link href="/campaign-history">Campaign history</Link>
+          <Link href="/campaign-costs">Campaign costs</Link>
+          <Link href="/billing">Invoices</Link>
           <Link href="/sending">Campaign sending</Link>
           <Link href="/account">My account</Link>
           {employee.isAdmin && (

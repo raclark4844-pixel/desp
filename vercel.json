@@ -7,6 +7,10 @@
     {
       "path": "/api/internal/outreach/worker",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/internal/billing/worker",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

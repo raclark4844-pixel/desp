@@ -312,3 +312,8 @@ nav .ap-spartan-brand { margin-bottom: 0; }
 .ai-session-check input { width:auto; flex:none; margin-top:4px; }
 .ai-session-actions { display:flex; flex-wrap:wrap; gap:10px; }
 .ai-session-dialog button:disabled { opacity:.5; cursor:not-allowed; }
+.billing-form {display:grid;gap:14px;max-width:700px;padding:20px 0;}
+.billing-form label {display:grid;gap:6px;}
+.billing-form input,.billing-form select {max-width:100%;min-width:0;}
+.billing-form input[type=checkbox] {width:20px;height:20px;}
+.billing-summary {white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6;border:1px solid var(--border);padding:20px;border-radius:12px;}

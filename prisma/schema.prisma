@@ -164,6 +164,8 @@ enum CostType {
 }
 
 model Customer {
+  billingPreference BillingPreference?
+  invoices BillingInvoice[]
   id          String         @id @default(uuid()) @db.Uuid
   name        String
   slug        String         @unique
@@ -797,4 +799,48 @@ model AiObservation {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
   @@index([conversationId, createdAt])
+}
+
+model BillingConfig {
+  id String @id @default("main")
+  thirdEmail String?
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+}
+model BillingPreference {
+  customerId String @id @db.Uuid
+  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+  email String?
+  enabled Boolean @default(true)
+}
+model BillingInvoice {
+  id String @id @default(uuid()) @db.Uuid
+  customerId String @db.Uuid
+  customer Customer @relation(fields:[customerId],references:[id],onDelete:Restrict)
+  number String @unique
+  cutoff DateTime @db.Timestamptz(6)
+  customerName String
+  status String @default("READY")
+  recipients String[]
+  unitCents Int @default(6000)
+  totalCents Int
+  sentAt DateTime? @db.Timestamptz(6)
+  providerId String? @unique
+  reason String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  lines BillingInvoiceLine[]
+  @@unique([customerId,cutoff])
+  @@index([status,createdAt])
+}
+model BillingInvoiceLine {
+  id String @id @default(uuid()) @db.Uuid
+  invoiceId String @db.Uuid
+  invoice BillingInvoice @relation(fields:[invoiceId],references:[id],onDelete:Cascade)
+  notificationId String @unique @db.Uuid
+  campaignId String @db.Uuid
+  campaignName String
+  leadId String @db.Uuid
+  summary String
+  sentAt DateTime @db.Timestamptz(6)
+  @@unique([campaignId,leadId])
 }

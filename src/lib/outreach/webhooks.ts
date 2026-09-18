@@ -338,6 +338,33 @@ export async function resendWebhook(request: Request) {
   if (typeof providerId !== "string") return new Response("Ignored");
   return db.$transaction(async (tx) => {
     await queueLock(tx);
+    const invoice = await tx.billingInvoice.findUnique({
+      where: { providerId },
+    });
+    if (invoice) {
+      const bad = [
+        "email.bounced",
+        "email.complained",
+        "email.failed",
+        "email.suppressed",
+      ].includes(type);
+      if (bad) {
+        await tx.billingInvoice.update({
+          where: { id: invoice.id },
+          data: { status: "FAILED", reason: type },
+        });
+        await tx.billingPreference.upsert({
+          where: { customerId: invoice.customerId },
+          create: { customerId: invoice.customerId, enabled: false },
+          update: { enabled: false },
+        });
+      } else if (type === "email.delivered" && invoice.status !== "FAILED")
+        await tx.billingInvoice.update({
+          where: { id: invoice.id },
+          data: { status: "DELIVERED" },
+        });
+      return new Response("OK");
+    }
     const reply = await tx.inboxReply.findUnique({
       where: { providerId },
       include: { conversation: { include: { campaign: true, contact: true } } },
