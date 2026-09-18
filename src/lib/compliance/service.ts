@@ -51,6 +51,7 @@ async function context(tx: Tx, target: Target) {
 export async function recordEvidence(raw: unknown) {
   const input = evidenceSchema.parse(raw);
   return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(728411901)`;
     // Serialize retries globally by request ID; hash collisions only serialize extra requests.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${input.requestId}, 0))`;
     await tx.$queryRaw`SELECT id FROM "Contact" WHERE id = ${input.contactId}::uuid FOR UPDATE`;
@@ -139,131 +140,126 @@ export async function recordEvidence(raw: unknown) {
     return { evidenceId: event.id, replayed: false, outreachAllowed: false };
   });
 }
+export async function evaluateReadinessInTransaction(tx: Tx, raw: unknown) {
+  const target = targetSchema.parse(raw);
+  const { campaign, contact, enrollment, fingerprint } = await context(
+    tx,
+    target,
+  );
+  const now = new Date();
+  const [events, consents, suppression] = await Promise.all([
+    tx.auditEvent.findMany({
+      where: {
+        campaignId: campaign.id,
+        leadId: target.leadId,
+        eventType: "compliance.evidence",
+        AND: [
+          { payload: { path: ["contactId"], equals: contact.id } },
+          { payload: { path: ["channel"], equals: target.channel } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 501,
+    }),
+    tx.consent.findMany({
+      where: { contactId: contact.id, channel: target.channel },
+      orderBy: { createdAt: "desc" },
+      take: 501,
+    }),
+    tx.suppression.findFirst({
+      where: {
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          {
+            OR: [
+              { scope: "GLOBAL" },
+              { scope: "CUSTOMER", customerId: campaign.customerId },
+              { scope: "CAMPAIGN", campaignId: campaign.id },
+            ],
+          },
+          {
+            OR: [
+              { leadId: target.leadId },
+              { contactId: contact.id },
+              { value: contact.normalizedValue },
+              { leadId: null, contactId: null, value: null },
+            ],
+          },
+        ],
+      },
+    }),
+  ]);
+  const checks: CheckEvidence[] = [];
+  for (const event of events) {
+    const payload = asRecord(event.payload);
+    if (
+      payload.fingerprint !== fingerprint ||
+      payload.policyVersion !== POLICY_VERSION
+    )
+      continue;
+    const {
+      fingerprint: _f,
+      policyVersion: _p,
+      requestDigest: _d,
+      ...original
+    } = payload;
+    const parsed = evidenceSchema.safeParse(original);
+    if (parsed.success && parsed.data.action === "CHECK")
+      checks.push(parsed.data);
+  }
+  const config = asRecord(asRecord(campaign.outreachConfig).requestedChannels);
+  const result = evaluatePolicy(
+    {
+      channel: target.channel,
+      contactType: contact.type,
+      isValid: contact.isValid,
+      normalizedValue: contact.normalizedValue,
+      active:
+        campaign.customer.status === "ACTIVE" &&
+        ["READY", "RUNNING"].includes(campaign.status),
+      enrolled: !!enrollment && !enrollment.removedAt,
+      leadStatus: contact.lead.status,
+      channelRequested:
+        config[
+          target.channel === "SMS"
+            ? "sms"
+            : target.channel === "CALL"
+              ? "calling"
+              : "email"
+        ] === true,
+      campaignStart: campaign.startAt,
+      campaignEnd: campaign.endAt,
+      suppressed: !!suppression,
+      checks,
+      evidenceOverflow: events.length > 500 || consents.length > 500,
+      consents: consents.map((c) => ({
+        status: c.status,
+        observedAt: (c.revokedAt ?? c.grantedAt ?? c.createdAt).toISOString(),
+        expiresAt: c.expiresAt?.toISOString() ?? null,
+        supported:
+          c.source === "APS_REVIEW" &&
+          asRecord(c.evidence).fingerprint === fingerprint &&
+          asRecord(c.evidence).policyVersion === POLICY_VERSION &&
+          typeof asRecord(c.evidence).evidenceRef === "string",
+      })),
+    },
+    now,
+  );
+  await tx.auditEvent.create({
+    data: {
+      customerId: campaign.customerId,
+      campaignId: campaign.id,
+      leadId: target.leadId,
+      eventType: "compliance.evaluated",
+      actorType: "COMPLIANCE_REVIEW",
+      payload: json({ ...target, ...result }),
+    },
+  });
+  return { ...target, ...result };
+}
 export async function evaluateReadiness(raw: unknown) {
   const target = targetSchema.parse(raw);
-  return db.$transaction(
-    async (tx) => {
-      const { campaign, contact, enrollment, fingerprint } = await context(
-        tx,
-        target,
-      );
-      const now = new Date();
-      const [events, consents, suppression] = await Promise.all([
-        tx.auditEvent.findMany({
-          where: {
-            campaignId: campaign.id,
-            leadId: target.leadId,
-            eventType: "compliance.evidence",
-            AND: [
-              { payload: { path: ["contactId"], equals: contact.id } },
-              { payload: { path: ["channel"], equals: target.channel } },
-            ],
-          },
-          orderBy: { createdAt: "desc" },
-          take: 501,
-        }),
-        tx.consent.findMany({
-          where: { contactId: contact.id, channel: target.channel },
-          orderBy: { createdAt: "desc" },
-          take: 501,
-        }),
-        tx.suppression.findFirst({
-          where: {
-            AND: [
-              { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-              {
-                OR: [
-                  { scope: "GLOBAL" },
-                  { scope: "CUSTOMER", customerId: campaign.customerId },
-                  { scope: "CAMPAIGN", campaignId: campaign.id },
-                ],
-              },
-              {
-                OR: [
-                  { leadId: target.leadId },
-                  { contactId: contact.id },
-                  { value: contact.normalizedValue },
-                  { leadId: null, contactId: null, value: null },
-                ],
-              },
-            ],
-          },
-        }),
-      ]);
-      const checks: CheckEvidence[] = [];
-      for (const event of events) {
-        const payload = asRecord(event.payload);
-        if (
-          payload.fingerprint !== fingerprint ||
-          payload.policyVersion !== POLICY_VERSION
-        )
-          continue;
-        const {
-          fingerprint: _f,
-          policyVersion: _p,
-          requestDigest: _d,
-          ...original
-        } = payload;
-        const parsed = evidenceSchema.safeParse(original);
-        if (parsed.success && parsed.data.action === "CHECK")
-          checks.push(parsed.data);
-      }
-      const config = asRecord(
-        asRecord(campaign.outreachConfig).requestedChannels,
-      );
-      const result = evaluatePolicy(
-        {
-          channel: target.channel,
-          contactType: contact.type,
-          isValid: contact.isValid,
-          normalizedValue: contact.normalizedValue,
-          active:
-            campaign.customer.status === "ACTIVE" &&
-            ["READY", "RUNNING"].includes(campaign.status),
-          enrolled: !!enrollment && !enrollment.removedAt,
-          leadStatus: contact.lead.status,
-          channelRequested:
-            config[
-              target.channel === "SMS"
-                ? "sms"
-                : target.channel === "CALL"
-                  ? "calling"
-                  : "email"
-            ] === true,
-          campaignStart: campaign.startAt,
-          campaignEnd: campaign.endAt,
-          suppressed: !!suppression,
-          checks,
-          evidenceOverflow: events.length > 500 || consents.length > 500,
-          consents: consents.map((c) => ({
-            status: c.status,
-            observedAt: (
-              c.revokedAt ??
-              c.grantedAt ??
-              c.createdAt
-            ).toISOString(),
-            expiresAt: c.expiresAt?.toISOString() ?? null,
-            supported:
-              c.source === "APS_REVIEW" &&
-              asRecord(c.evidence).fingerprint === fingerprint &&
-              asRecord(c.evidence).policyVersion === POLICY_VERSION &&
-              typeof asRecord(c.evidence).evidenceRef === "string",
-          })),
-        },
-        now,
-      );
-      await tx.auditEvent.create({
-        data: {
-          customerId: campaign.customerId,
-          campaignId: campaign.id,
-          leadId: target.leadId,
-          eventType: "compliance.evaluated",
-          actorType: "COMPLIANCE_REVIEW",
-          payload: json({ ...target, ...result }),
-        },
-      });
-      return { ...target, ...result };
-    },
-    { isolationLevel: "RepeatableRead" },
-  );
+  return db.$transaction((tx) => evaluateReadinessInTransaction(tx, target), {
+    isolationLevel: "RepeatableRead",
+  });
 }

@@ -206,6 +206,7 @@ model User {
 }
 
 model Campaign {
+  outboundBatches OutboundBatch[]
   id                  String         @id @default(uuid()) @db.Uuid
   customerId          String         @db.Uuid
   name                String
@@ -342,6 +343,7 @@ model Property {
 }
 
 model Contact {
+  outboundRecipients OutboundRecipient[]
   id              String      @id @default(uuid()) @db.Uuid
   leadId          String      @db.Uuid
   type            ContactType
@@ -626,4 +628,57 @@ model LoginAttempt {
   key String @id
   attempts Int @default(1)
   windowAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model OutboundBatch {
+  id String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  channel ConsentChannel
+  position Int @unique @default(autoincrement())
+  status String @default("DRAFT")
+  subject String @default("")
+  body String
+  mailingAddress String
+  recipientTimezone String
+  approvedBy String?
+  approvedAt DateTime? @db.Timestamptz(6)
+  queuedAt DateTime? @db.Timestamptz(6)
+  createdBy String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  lastDispatchAt DateTime? @db.Timestamptz(6)
+  reason String?
+  recipients OutboundRecipient[]
+  @@unique([campaignId, channel])
+  @@index([status, position])
+}
+
+model OutboundRecipient {
+  id String @id @default(uuid()) @db.Uuid
+  batchId String @db.Uuid
+  batch OutboundBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  leadId String @db.Uuid
+  contactId String @db.Uuid
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  destination String
+  status String @default("PENDING")
+  reason String?
+  attempts Int @default(0)
+  nextAttemptAt DateTime? @db.Timestamptz(6)
+  attemptedAt DateTime? @db.Timestamptz(6)
+  providerId String? @unique
+  bridgeStartedAt DateTime? @db.Timestamptz(6)
+  messageId String? @unique @db.Uuid
+  unsubscribeToken String @unique @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@unique([batchId, destination])
+  @@index([batchId, status])
+}
+
+model OutboundReservation {
+  key String @id
+  recipientId String @unique @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 }

@@ -181,3 +181,7 @@ Select a campaign in operations and open its masked contact review. Operators ca
 ## RealPhoneValidation preparation
 
 The DNC Lookup adapter is implemented with simulated-response tests and remains disconnected from live execution pending FTC registration and authorization setup. See [connector preparation and remaining activation work](docs/rpv-connector-preparation.md).
+
+## Campaign sending (live delivery disabled)
+
+Employees can prepare SMS, email and employee-assisted phone batches at `/sending`. Administrators approve and control the serial queue. Twilio and Resend adapters, signed callbacks, unsubscribe/STOP suppression, fresh eligibility checks, conservative spacing, duplicate protection and uncertain-delivery holds are implemented. Provider setup and live verification are still required. See [sending setup and operating limits](docs/step10-campaign-sending.md). Existing read-only readiness APIs still do not authorize outreach.
