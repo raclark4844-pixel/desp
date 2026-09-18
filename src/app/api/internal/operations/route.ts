@@ -1,3 +1,4 @@
+import { employeeFromRequest } from "@/lib/employee/auth";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { sessionFromRequest } from "@/lib/operations/session";
@@ -7,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const headers = { "Cache-Control": "no-store, private", Vary: "Cookie" };
-  if (!sessionFromRequest(request) && !isAuthorizedInternalRequest(request))
+  if (!sessionFromRequest(request) && !isAuthorizedInternalRequest(request) && !(await employeeFromRequest(request)))
     return NextResponse.json(
       { ok: false, error: "Sign in to view operations." },
       { status: 401, headers },

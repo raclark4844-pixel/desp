@@ -1,3 +1,4 @@
+import { employeeFromRequest } from "@/lib/employee/auth";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isAuthorizedInternalRequest } from "@/lib/internal-auth";
@@ -9,7 +10,7 @@ const headers = {
   Vary: "Cookie, x-aps-internal-key",
 };
 export async function GET(request: Request) {
-  if (!sessionFromRequest(request) && !isAuthorizedInternalRequest(request)) {
+  if (!sessionFromRequest(request) && !isAuthorizedInternalRequest(request) && !(await employeeFromRequest(request))) {
     return NextResponse.json(
       { error: "Sign in to Operations to search saved customers." },
       { status: 401, headers },

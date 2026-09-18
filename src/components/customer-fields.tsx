@@ -288,19 +288,7 @@ export function CustomerFields() {
           >
             Use a new customer
           </button>
-          <label>
-            Operator key to save this customer’s campaign
-            <input
-              type="password"
-              name="customerAuthorization"
-              required
-              autoComplete="off"
-            />
-          </label>
-          <small>
-            The Operations session allows lookup. Your operator key authorizes
-            saving a draft linked to this customer.
-          </small>
+          <small>Your employee sign-in authorizes saving a draft linked to this customer.</small>
         </div>
       )}
     </>

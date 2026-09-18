@@ -126,17 +126,7 @@ export function CampaignBuilder() {
     try {
       const response = await fetch("/api/campaigns", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(form.get("customerId")
-            ? {
-                "x-aps-internal-key": stringValue(
-                  form,
-                  "customerAuthorization",
-                ),
-              }
-            : {}),
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -152,8 +142,6 @@ export function CampaignBuilder() {
         error: "The campaign service could not be reached. Please try again.",
       });
     } finally {
-      const keyInput = formElement.elements.namedItem("customerAuthorization");
-      if (keyInput instanceof HTMLInputElement) keyInput.value = "";
       setSubmitting(false);
     }
   }

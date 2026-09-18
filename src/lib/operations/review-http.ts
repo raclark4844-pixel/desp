@@ -1,3 +1,4 @@
+import { employeeFromRequest } from "@/lib/employee/auth";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { isAuthorizedInternalRequest } from "../internal-auth";
@@ -10,7 +11,7 @@ export async function reviewRoute(
 ) {
   const headers = { "Cache-Control": "no-store, private", Vary: "Cookie" };
   const hasKey = isAuthorizedInternalRequest(request);
-  if (!hasKey && (write || !sessionFromRequest(request)))
+  if (!hasKey && (write || !sessionFromRequest(request)) && !(await employeeFromRequest(request)))
     return NextResponse.json(
       { ok: false, error: "Unauthorized" },
       { status: 401, headers },

@@ -1,3 +1,4 @@
+import { employeeFromRequest } from "@/lib/employee/auth";
 import { z } from "zod";
 import { reviewRoute } from "@/lib/operations/review-http";
 import { recordEvidence } from "@/lib/compliance/service";
@@ -13,7 +14,8 @@ export async function POST(request: Request) {
     request,
     async () => {
       const body = submission.parse(await boundedJson(request));
-      return recordEvidence(body.evidence);
+      const employee = await employeeFromRequest(request);
+      return recordEvidence({ ...body.evidence, ...(employee ? { actorRef: employee.id } : {}) });
     },
     true,
   );

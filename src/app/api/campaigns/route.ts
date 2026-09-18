@@ -1,3 +1,5 @@
+import { employeeFromRequest } from "@/lib/employee/auth";
+import { sameOrigin } from "@/lib/operations/session";
 import { isAuthorizedInternalRequest } from "@/lib/internal-auth";
 import { NextResponse } from "next/server";
 import { campaignIntakeSchema } from "@/lib/campaign-schema";
@@ -9,6 +11,10 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const machine = isAuthorizedInternalRequest(request);
+  const employee = machine ? null : await employeeFromRequest(request);
+  if (!machine && !employee) return NextResponse.json({ ok: false, error: "Employee sign-in required." }, { status: 401 });
+  if (!machine && !sameOrigin(request)) return NextResponse.json({ ok: false, error: "Request origin rejected." }, { status: 403 });
   let body: unknown;
 
   try {
@@ -36,7 +42,8 @@ export async function POST(request: Request) {
   try {
     const result = await createCampaignIntake(
       parsed.data,
-      isAuthorizedInternalRequest(request),
+      machine || !!employee,
+      employee?.id,
     );
 
     return NextResponse.json(

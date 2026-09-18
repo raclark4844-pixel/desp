@@ -1,3 +1,4 @@
+import { requireEmployeePage } from "@/lib/employee/page";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
@@ -11,6 +12,7 @@ export default async function ReviewPage({
 }: {
   searchParams: Promise<{ campaignId?: string }>;
 }) {
+  await requireEmployeePage();
   const { campaignId } = await searchParams;
   if (!z.string().uuid().safeParse(campaignId).success)
     return (

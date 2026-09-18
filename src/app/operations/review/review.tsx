@@ -10,7 +10,7 @@ import styles from "./review.module.css";
 const words = (s: string) => s.toLowerCase().replaceAll("_", " ");
 const errors: Record<string, string> = {
   Unauthorized:
-    "Access expired or the key was not accepted. Sign in through operations, or enter the internal key to save.",
+    "Your employee session expired. Sign in again to continue.",
   INVALID_REVIEW_INPUT:
     "Check the selected contact, evidence fields, dates, and acknowledgement.",
   INVALID_EVIDENCE_EXPIRY:
@@ -49,7 +49,6 @@ export default function Review({ campaignId }: { campaignId: string }) {
     [reference, setReference] = useState(""),
     [observed, setObserved] = useState(""),
     [expires, setExpires] = useState(""),
-    [key, setKey] = useState(""),
     [ack, setAck] = useState(false);
   const pending = useRef<{ signature: string; requestId: string } | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -67,7 +66,6 @@ export default function Review({ campaignId }: { campaignId: string }) {
     setNotice("");
     setContactId("");
     setPage(null);
-    setKey("");
     setAck(false);
     try {
       const response = await fetch(
@@ -91,7 +89,6 @@ export default function Review({ campaignId }: { campaignId: string }) {
     setDecision(null);
     setNotice("");
     setAck(false);
-    setKey("");
   }
   async function evaluate() {
     if (!target) return;
@@ -121,8 +118,6 @@ export default function Review({ campaignId }: { campaignId: string }) {
     setError("");
     setNotice("");
     setDecision(null);
-    const supplied = key;
-    setKey("");
     try {
       const base = {
         ...target,
@@ -156,7 +151,6 @@ export default function Review({ campaignId }: { campaignId: string }) {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-aps-internal-key": supplied,
           },
           body: JSON.stringify({
             acknowledged: true,
@@ -496,25 +490,14 @@ export default function Review({ campaignId }: { campaignId: string }) {
                 I verified the evidence matches this lead, contact, campaign,
                 and channel, and understand this records an audit event.
               </label>
-              <label>
-                AP Spartan internal key — required to save
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  required
-                  maxLength={512}
-                />
-              </label>
               <button
                 className="primary-button"
-                disabled={busy || !ack || !key}
+                disabled={busy || !ack}
               >
                 Save evidence record
               </button>
               <p className="microcopy">
-                The key is cleared after submission. To retry a failed request,
+                Your employee account is recorded with the evidence. To retry a failed request,
                 leave its evidence fields unchanged. Records are append-only;
                 this page cannot remove suppressions.
               </p>

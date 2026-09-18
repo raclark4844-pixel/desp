@@ -1,7 +1,7 @@
 "use client";
 import { Brand } from "@/components/brand";
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { OperationsData } from "@/lib/operations/service";
 import styles from "./operations.module.css";
 // JSON transport changes Date fields to ISO strings.
@@ -22,7 +22,6 @@ export default function Operations() {
     [locked, setLocked] = useState(true),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
-    [key, setKey] = useState(""),
     [search, setSearch] = useState("");
   const request = useRef<AbortController | null>(null);
   const filter = useRef({ search: "", customerId: "", campaignId: "" });
@@ -61,35 +60,13 @@ export default function Operations() {
     void load();
     return () => request.current?.abort();
   }, []);
-  async function login(event: FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    const supplied = key;
-    setKey("");
-    try {
-      const response = await fetch("/api/operations/session", {
-        method: "POST",
-        headers: { "x-aps-internal-key": supplied },
-      });
-      if (!response.ok)
-        throw new Error(
-          "Access key not accepted. Check the AP Spartan internal key and try again.",
-        );
-      setLocked(false);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Sign-in failed.");
-      setLoading(false);
-    }
-  }
   async function logout() {
     request.current?.abort();
     setLoading(true);
     setData(null);
     setError("");
     try {
-      const response = await fetch("/api/operations/session", {
+      const response = await fetch("/api/employee/session", {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Sign-out failed. Please try again.");
@@ -135,30 +112,8 @@ export default function Operations() {
         <section className={`form-section ${styles.login}`}>
           <p className="eyebrow">PRIVATE WORKSPACE</p>
           <h2>Open operations</h2>
-          <p className="hero-copy">
-            Use your AP Spartan internal access key. Access expires after 30 minutes.
-          </p>
-          <form onSubmit={login}>
-            <label>
-              AP Spartan access key
-              <input
-                type="password"
-                autoComplete="off"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                required
-                maxLength={512}
-              />
-            </label>
-            <button className="primary-button" disabled={loading || !key}>
-              {" "}
-              {loading ? "Checking access…" : "Open dashboard"}
-            </button>
-          </form>
-          <p className="microcopy">
-            For authorized AP Spartan operators. Your access key is not saved in
-            browser storage.
-          </p>
+          <p>Sign in with your employee username or email and password.</p>
+          <Link href="/login" className="primary-button">Employee sign-in</Link>
         </section>
       ) : (
         <>

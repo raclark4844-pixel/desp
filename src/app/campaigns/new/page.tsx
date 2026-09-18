@@ -1,3 +1,4 @@
+import { requireEmployeePage } from "@/lib/employee/page";
 import { Brand } from "@/components/brand";
 import type { Metadata } from "next";
 import { CampaignBuilder } from "@/components/campaign-builder";
@@ -7,7 +8,8 @@ export const metadata: Metadata = {
   description: "Create a draft AP Spartan lead-generation campaign with industry-specific targeting and territories.",
 };
 
-export default function NewCampaignPage() {
+export default async function NewCampaignPage() {
+  await requireEmployeePage();
   return (
     <main className="page-shell">
       <section className="hero-panel">

@@ -31,6 +31,7 @@ export class CustomerIntakeError extends Error {
 export async function createCampaignIntake(
   input: CampaignIntake,
   allowExistingCustomer = false,
+  employeeId?: string,
 ) {
   if (input.customer.id && !allowExistingCustomer) {
     throw new CustomerIntakeError(
@@ -139,8 +140,8 @@ export async function createCampaignIntake(
         customerId: customer.id,
         campaignId: campaign.id,
         eventType: "campaign.created",
-        actorType: input.customer.id ? "APS_INTERNAL" : "CUSTOMER_INTAKE",
-        actorId: input.customer.contactEmail.toLowerCase(),
+        actorType: employeeId ? "EMPLOYEE" : input.customer.id ? "APS_INTERNAL" : "CUSTOMER_INTAKE",
+        actorId: employeeId ?? input.customer.contactEmail.toLowerCase(),
         payload: {
           source: "campaign-builder",
           customerSelection: input.customer.id ? "EXISTING" : "NEW",
