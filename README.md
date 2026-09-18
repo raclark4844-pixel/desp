@@ -1,4 +1,4 @@
-# APS Lead Engine — Steps 1–5
+# APS Lead Engine — Steps 1–7
 
 APS Lead Engine is the backend and campaign-intake foundation for AP Spartan's multi-industry lead-generation platform. The system is designed so one permanent customer/campaign/lead identity follows a prospect through sourcing, enrichment, compliance, outreach, qualification, delivery, and reporting.
 
@@ -142,20 +142,18 @@ APS campaign targeting must not use protected-class or sensitive-personal-data c
 
 ## Not implemented yet
 
-The following remain downstream work after Step 3:
+The remaining integrations and product features include:
 
-- Execute BatchData / BatchLeads source jobs against the provider API
 - PropWire import automation or approved API connector
 - PhantomBuster execution and result ingestion
-- Contact/property enrichment and normalization
-- Deduplication / lead quality scoring
+- Lead quality scoring
 - DNC, consent, suppression, reassigned-number, and state-specific compliance engine
 - TextGrid outbound/inbound SMS and 10DLC workflow
 - Email/calling providers
 - AI reply and qualification agents
 - Automated appointments
 - Client lead delivery
-- Client/admin dashboard
+- Customer accounts and expanded operator dashboard actions
 - Optimization/retraining loops
 
 Those layers plug into the `ProviderJob`, lead, property, contact, consent, suppression, conversation, qualification, delivery, cost, and audit models already established.
@@ -171,3 +169,7 @@ BatchData enrichment jobs now support protected queue, execution and retry endpo
 ## Step 6 — lead-readiness review
 
 Protected evidence and evaluation APIs check consent, contact verification, campaign context, and suppressions without enabling outreach. See [Step 6 setup and limitations](docs/step6-compliance-review.md). External verification evidence is still required; paid BatchData testing remains deferred.
+
+## Step 7 — operations dashboard
+
+Open `/operations` for a protected, read-only view of customers, campaigns, jobs, activity and setup readiness. Sign in using the existing APS internal access key. See [dashboard access and limitations](docs/step7-operations-dashboard.md).

@@ -27,7 +27,7 @@ export async function GET() {
         ok: true,
         service: "aps-lead-engine",
         database: "connected",
-        version: "0.6.0",
+        version: "0.7.0",
       },
       { headers: noStoreHeaders },
     );
