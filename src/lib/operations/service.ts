@@ -23,7 +23,15 @@ export async function getOperations(raw: unknown) {
     orderBy: [{ name: "asc" }, { id: "asc" }],
     take: 51,
   });
-  const customerId = query.customerId ?? customers[0]?.id;
+  const linkedCampaign =
+    query.campaignId && !query.customerId
+      ? await db.campaign.findUnique({
+          where: { id: query.campaignId },
+          select: { customerId: true },
+        })
+      : null;
+  const customerId =
+    query.customerId ?? linkedCampaign?.customerId ?? customers[0]?.id;
   const customer = customerId
     ? await db.customer.findUnique({
         where: { id: customerId },

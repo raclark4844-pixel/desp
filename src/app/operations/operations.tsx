@@ -64,7 +64,10 @@ export default function Operations({
     }
   }
   useEffect(() => {
-    void load();
+    const params = new URLSearchParams(window.location.search);
+    const campaignId = params.get("campaignId") ?? "";
+    const customerId = params.get("customerId") ?? "";
+    void load({ search: "", customerId, campaignId });
     return () => request.current?.abort();
   }, []);
   async function logout() {

@@ -53,7 +53,18 @@ export async function POST(
   }
 
   try {
-    const result = await activateCampaign(parsedId.data, employee?.id);
+    const result = await activateCampaign(parsedId.data, employee?.id, {
+      token: request.headers.get("x-campaign-review") ?? "",
+      acknowledgeSetup:
+        request.headers.get("x-acknowledge-sending-setup") === "yes",
+    });
+
+    if (result.kind === "preparation_required") {
+      return NextResponse.json(
+        { ok: false, error: result.error },
+        { status: 409 },
+      );
+    }
 
     if (result.kind === "not_found") {
       return NextResponse.json(

@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 type Batch = {
   id: string;
+  campaignId: string;
   updatedAt: string;
   channel: string;
   status: string;
@@ -30,6 +31,7 @@ export default function Sending({ admin }: { admin: boolean }) {
   const [data, setData] = useState<Overview | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [selectedCampaign, setSelectedCampaign] = useState(""),
     [channel, setChannel] = useState("SMS"),
     [review, setReview] = useState<string | null>(null);
   async function refresh() {
@@ -39,6 +41,11 @@ export default function Sending({ admin }: { admin: boolean }) {
     setData(body.result);
   }
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSelectedCampaign(params.get("campaignId") ?? "");
+    const requestedChannel = params.get("channel");
+    if (requestedChannel && ["SMS", "EMAIL", "CALL"].includes(requestedChannel))
+      setChannel(requestedChannel);
     let alive = true;
     fetch("/api/sending", { cache: "no-store" })
       .then(async (r) => {
@@ -101,6 +108,9 @@ export default function Sending({ admin }: { admin: boolean }) {
       recipientTimezone: f.get("recipientTimezone"),
     });
   }
+  const saved = data?.batches.find(
+    (b) => b.campaignId === selectedCampaign && b.channel === channel,
+  );
   return (
     <>
       <p className="form-section">
@@ -121,11 +131,29 @@ export default function Sending({ admin }: { admin: boolean }) {
         <p>Loading sending workspace…</p>
       ) : (
         <>
-          <form onSubmit={save} className="form-section employee-form">
+          {selectedCampaign && (
+            <p>
+              <a
+                href={`/operations?campaignId=${selectedCampaign}#campaign-records`}
+              >
+                Return to this campaign’s pre-collection checklist
+              </a>
+            </p>
+          )}
+          <form
+            key={`${selectedCampaign}:${channel}:${saved?.updatedAt ?? "new"}`}
+            onSubmit={save}
+            className="form-section employee-form"
+          >
             <h2>Prepare a message</h2>
             <label>
               Campaign
-              <select name="campaignId" required>
+              <select
+                name="campaignId"
+                value={selectedCampaign}
+                onChange={(e) => setSelectedCampaign(e.target.value)}
+                required
+              >
                 <option value="">Choose campaign</option>
                 {data.campaigns.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -148,13 +176,19 @@ export default function Sending({ admin }: { admin: boolean }) {
             {channel === "EMAIL" && (
               <label>
                 Subject
-                <input name="subject" maxLength={160} required />
+                <input
+                  name="subject"
+                  defaultValue={saved?.subject ?? ""}
+                  maxLength={160}
+                  required
+                />
               </label>
             )}
             <label>
               {channel === "CALL" ? "Approved employee call script" : "Message"}
               <textarea
                 name="body"
+                defaultValue={saved?.body ?? ""}
                 rows={6}
                 minLength={10}
                 maxLength={channel === "SMS" ? 600 : 4000}
@@ -173,6 +207,7 @@ export default function Sending({ admin }: { admin: boolean }) {
               Customer’s physical mailing address
               <textarea
                 name="mailingAddress"
+                defaultValue={saved?.mailingAddress ?? ""}
                 minLength={10}
                 maxLength={300}
                 required
@@ -180,7 +215,11 @@ export default function Sending({ admin }: { admin: boolean }) {
             </label>
             <label>
               Verified audience timezone
-              <select name="recipientTimezone" required>
+              <select
+                name="recipientTimezone"
+                defaultValue={saved?.recipientTimezone ?? ""}
+                required
+              >
                 <option value="">Choose the recipients’ timezone</option>
                 {[
                   "America/New_York",
@@ -200,7 +239,10 @@ export default function Sending({ admin }: { admin: boolean }) {
               limited to weekdays, 10 AM–6 PM in that timezone. Your
               jurisdiction review must confirm these hours are appropriate.
             </p>
-            <button disabled={busy} className="primary-button">
+            <button
+              disabled={busy || (!!saved && saved.status !== "DRAFT")}
+              className="primary-button"
+            >
               Save draft
             </button>
             <p>

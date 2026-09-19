@@ -1,3 +1,4 @@
+import { campaignPreparation, preparationIssue } from "./campaign-preparation";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type { CampaignIntake } from "@/lib/campaign-schema";
@@ -168,8 +169,12 @@ export async function createCampaignIntake(
 export async function activateCampaign(
   campaignId: string,
   employeeId?: string,
+  review?: { token: string; acknowledgeSetup: boolean },
 ) {
   return db.$transaction(async (tx) => {
+    // Share the message-edit lock so the reviewed content cannot change during activation.
+    if (employeeId)
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(728411901)`;
     await tx.$queryRaw`SELECT id FROM "Campaign" WHERE id = ${campaignId}::uuid FOR UPDATE`;
     const campaign = await tx.campaign.findUnique({
       where: { id: campaignId },
@@ -197,6 +202,37 @@ export async function activateCampaign(
         jobStatus: existingJob.status,
         status: campaign.status,
       };
+    }
+
+    if (employeeId) {
+      const preparation = await campaignPreparation(campaignId, tx);
+      const issue =
+        preparation &&
+        preparationIssue(
+          preparation,
+          review?.token,
+          review?.acknowledgeSetup === true,
+        );
+      if (!preparation || issue)
+        return {
+          kind: "preparation_required" as const,
+          error: issue ?? "Campaign preparation unavailable.",
+        };
+      await tx.auditEvent.create({
+        data: {
+          campaignId,
+          customerId: campaign.customerId,
+          actorType: "EMPLOYEE",
+          actorId: employeeId,
+          eventType: "campaign.preparation_confirmed",
+          payload: {
+            reviewToken: preparation.reviewToken,
+            messages: preparation.messages,
+            setupAcknowledged: review?.acknowledgeSetup === true,
+            recipientChecksPending: true,
+          },
+        },
+      });
     }
 
     const updated = await tx.campaign.update({
