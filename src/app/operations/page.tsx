@@ -26,7 +26,7 @@ export default async function OperationsPage() {
           )}
         </nav>
       </div>
-      <Operations>
+      <Operations admin={employee.isAdmin}>
         <ProjectDirectory admin={employee.isAdmin} />
       </Operations>
     </>

@@ -164,6 +164,16 @@ export function CampaignBuilder() {
             {result.ok ? "Campaign draft created" : "Campaign not created"}
           </strong>
           <p>{result.message ?? result.error}</p>
+          {result.ok && (
+            <p>
+              <a href="/operations#campaign-records" className="primary-button">
+                Next: review and collect leads →
+              </a>
+              <br />
+              Select your customer and campaign. An administrator can activate
+              lead collection after review.
+            </p>
+          )}
           {result.campaignId ? (
             <dl className="result-grid">
               <div>
@@ -197,8 +207,8 @@ export function CampaignBuilder() {
           <p className="step-label">CAMPAIGN</p>
           <h2>What should AP Spartan build?</h2>
           <p>
-            The campaign stays in draft until an authorized AP Spartan action activates
-            it.
+            The campaign stays in draft until an authorized AP Spartan action
+            activates it.
           </p>
         </div>
         <div className="field-grid two-column">

@@ -1,4 +1,5 @@
 "use client";
+import { ActivateCampaign } from "@/components/activate-campaign";
 import { Brand } from "@/components/brand";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -19,8 +20,10 @@ function Badge({ value }: { value: string }) {
 }
 export default function Operations({
   children,
+  admin,
 }: {
   children?: React.ReactNode;
+  admin: boolean;
 }) {
   const [data, setData] = useState<Data | null>(null),
     [locked, setLocked] = useState(true),
@@ -222,6 +225,21 @@ export default function Operations({
                   Showing the 50 most recent campaigns.
                 </p>
               ) : null}
+              {data.campaign &&
+                ["DRAFT", "READY"].includes(data.campaign.status) &&
+                (admin ? (
+                  <ActivateCampaign
+                    key={data.campaign.id}
+                    campaignId={data.campaign.id}
+                    name={data.campaign.name}
+                    onRefresh={() => void load()}
+                  />
+                ) : (
+                  <p>
+                    An administrator can activate lead collection for this
+                    campaign.
+                  </p>
+                ))}
               {data.campaign ? (
                 <p>
                   <Link

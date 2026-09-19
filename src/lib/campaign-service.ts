@@ -140,7 +140,11 @@ export async function createCampaignIntake(
         customerId: customer.id,
         campaignId: campaign.id,
         eventType: "campaign.created",
-        actorType: employeeId ? "EMPLOYEE" : input.customer.id ? "APS_INTERNAL" : "CUSTOMER_INTAKE",
+        actorType: employeeId
+          ? "EMPLOYEE"
+          : input.customer.id
+            ? "APS_INTERNAL"
+            : "CUSTOMER_INTAKE",
         actorId: employeeId ?? input.customer.contactEmail.toLowerCase(),
         payload: {
           source: "campaign-builder",
@@ -161,7 +165,10 @@ export async function createCampaignIntake(
   });
 }
 
-export async function activateCampaign(campaignId: string) {
+export async function activateCampaign(
+  campaignId: string,
+  employeeId?: string,
+) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Campaign" WHERE id = ${campaignId}::uuid FOR UPDATE`;
     const campaign = await tx.campaign.findUnique({
@@ -217,7 +224,8 @@ export async function activateCampaign(campaignId: string) {
         customerId: campaign.customerId,
         campaignId,
         eventType: "campaign.activated",
-        actorType: "APS_INTERNAL",
+        actorType: employeeId ? "EMPLOYEE" : "APS_INTERNAL",
+        actorId: employeeId,
         payload: {
           previousStatus: campaign.status,
           status: updated.status,
