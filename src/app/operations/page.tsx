@@ -2,8 +2,9 @@ import { requireEmployeePage } from "@/lib/employee/page";
 import Link from "next/link";
 import type { Metadata } from "next";
 import Operations from "./operations";
+import { ProjectDirectory } from "@/components/project-directory";
 export const metadata: Metadata = {
-  title: "Operations",
+  title: "Project home",
   robots: { index: false, follow: false },
 };
 export default async function OperationsPage() {
@@ -25,7 +26,9 @@ export default async function OperationsPage() {
           )}
         </nav>
       </div>
-      <Operations />
+      <Operations>
+        <ProjectDirectory admin={employee.isAdmin} />
+      </Operations>
     </>
   );
 }

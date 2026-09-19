@@ -17,7 +17,11 @@ const label = (value: string) => value.toLowerCase().replaceAll("_", " ");
 function Badge({ value }: { value: string }) {
   return <span className={styles.badge}>{label(value)}</span>;
 }
-export default function Operations() {
+export default function Operations({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   const [data, setData] = useState<Data | null>(null),
     [locked, setLocked] = useState(true),
     [loading, setLoading] = useState(true),
@@ -80,18 +84,19 @@ export default function Operations() {
   return (
     <main className="page-shell">
       <Brand />
+      {children}
       <nav className={styles.nav} aria-label="Main navigation">
         <Link href="/operations">Operations</Link>
         <Link href="/campaigns/new">Create a campaign ↗</Link>
       </nav>
-      <header className={styles.header}>
+      <header id="campaign-records" className={styles.header}>
         <div>
           <p className="eyebrow">OPERATIONS / SETUP</p>
-          <h1>
+          <h2>
             Your lead engine,
             <br />
             at a glance.
-          </h1>
+          </h2>
           <p className="hero-copy">
             Track campaign progress, review sourcing jobs, and see what needs
             attention.
@@ -112,7 +117,9 @@ export default function Operations() {
           <p className="eyebrow">PRIVATE WORKSPACE</p>
           <h2>Open operations</h2>
           <p>Sign in with your employee username or email and password.</p>
-          <Link href="/login" className="primary-button">Employee sign-in</Link>
+          <Link href="/login" className="primary-button">
+            Employee sign-in
+          </Link>
         </section>
       ) : (
         <>
