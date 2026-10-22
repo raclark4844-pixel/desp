@@ -19,7 +19,15 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.0
+          node-version: 24
+      - name: Refresh lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Upload refreshed lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-package-lock
+          path: package-lock.json
+          retention-days: 2
       - name: Install dependencies
         run: npm ci
       - name: Source adapter and guardrail tests
