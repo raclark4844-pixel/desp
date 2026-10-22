@@ -13,7 +13,7 @@ export default async function HomePage() {
   );
   if (employee)
     redirect(
-      employee.mustChangePassword ? "/account?required=1" : "/operations",
+      employee.mustChangePassword ? "/account?required=1" : "/dashboard",
     );
   return (
     <main className="page-shell">
@@ -22,7 +22,7 @@ export default async function HomePage() {
         <Link href="/login" className="primary-button">
           Log in
         </Link>
-        <Link href="/customers">Customer database</Link>
+        <Link href="/dashboard">Dashboard</Link>\n        <Link href="/customers">Customer database</Link>
         <Link href="/operations">Operations</Link>
       </nav>
       <section className="form-section">

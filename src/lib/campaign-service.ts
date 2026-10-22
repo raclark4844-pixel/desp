@@ -184,6 +184,17 @@ export async function activateCampaign(
       return { kind: "not_found" as const };
     }
 
+    const customer = await tx.customer.findUnique({
+      where: { id: campaign.customerId },
+      select: { status: true },
+    });
+    if (!customer || customer.status !== "ACTIVE") {
+      return {
+        kind: "customer_inactive" as const,
+        error: "Customer status must be active before lead collection can be activated.",
+      };
+    }
+
     const existingJob = await tx.providerJob.findFirst({
       where: {
         campaignId,
