@@ -59,6 +59,13 @@ export async function POST(
         request.headers.get("x-acknowledge-sending-setup") === "yes",
     });
 
+    if (result.kind === "customer_inactive") {
+      return NextResponse.json(
+        { ok: false, error: result.error },
+        { status: 409 },
+      );
+    }
+
     if (result.kind === "preparation_required") {
       return NextResponse.json(
         { ok: false, error: result.error },

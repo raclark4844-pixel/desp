@@ -5,6 +5,11 @@ const groups = [
     title: "Customers and campaign databases",
     links: [
       [
+        "Dashboard",
+        "See customer status, campaign health, recent activity and quick actions.",
+        "/dashboard",
+      ],
+      [
         "Customer database",
         "View and update companies and their contact information.",
         "/customers",

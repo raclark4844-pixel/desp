@@ -12,6 +12,8 @@ enum CustomerStatus {
   ACTIVE
   PAUSED
   SUSPENDED
+  DENIED
+  DEACTIVATED
   CLOSED
 }
 
